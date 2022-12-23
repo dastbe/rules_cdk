@@ -27,6 +27,9 @@ bzl_library(
     name = "defs",
     srcs = ["defs.bzl"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//cdk/private:cdk_assembly",
+    ]
 )
 
 bzl_library(

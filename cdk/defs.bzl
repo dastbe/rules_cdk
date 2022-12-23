@@ -1,5 +1,5 @@
-"Public API re-exports"
+"""Rules for generating CDK assemblies and deploying them"""
 
-def example():
-    """This is an example"""
-    pass
+load("//cdk/private:assembly.bzl", _cdk_assembly = "cdk_assembly")
+
+cdk_assembly = _cdk_assembly

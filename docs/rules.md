@@ -1,16 +1,23 @@
 <!-- Generated with Stardoc: http://skydoc.bazel.build -->
 
-Public API re-exports
+Rules for generating CDK assemblies and deploying them
 
-<a id="example"></a>
+<a id="cdk_assembly"></a>
 
-## example
+## cdk_assembly
 
 <pre>
-example()
+cdk_assembly(<a href="#cdk_assembly-name">name</a>, <a href="#cdk_assembly-app">app</a>)
 </pre>
 
-This is an example
 
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="cdk_assembly-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="cdk_assembly-app"></a>app |  -   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
 
 
