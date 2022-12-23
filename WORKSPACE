@@ -1,25 +1,20 @@
 # Declare the local Bazel workspace.
-workspace(
-    # If your ruleset is "official"
-    # (i.e. is in the bazelbuild GitHub org)
-    # then this should just be named "rules_mylang"
-    # see https://docs.bazel.build/versions/main/skylark/deploying.html#workspace
-    name = "com_myorg_rules_mylang",
-)
+workspace(name = "contrib_rules_cdk")
 
-load(":internal_deps.bzl", "rules_mylang_internal_deps")
+load(":internal_deps.bzl", "rules_cdk_internal_deps")
 
 # Fetch deps needed only locally for development
-rules_mylang_internal_deps()
+rules_cdk_internal_deps()
 
-load("//mylang:repositories.bzl", "mylang_register_toolchains", "rules_mylang_dependencies")
+load("//cdk:repositories.bzl", "cdk_register_toolchains", "rules_cdk_dependencies")
 
 # Fetch dependencies which users need as well
-rules_mylang_dependencies()
+rules_cdk_dependencies()
 
-mylang_register_toolchains(
-    name = "mylang1_14",
-    mylang_version = "1.14.2",
+# TODO(dastbe): fix toolchains for cdk
+cdk_register_toolchains(
+    name = "cdk1_14",
+    cdk_version = "1.14.2",
 )
 
 # For running our own unit tests
