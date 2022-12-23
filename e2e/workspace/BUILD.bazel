@@ -3,15 +3,15 @@ Add a basic smoke-test target below.
 """
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-# load("contrib_rules_cdk//cdk:defs.bzl", "...")
+load("@npm//:defs.bzl", "npm_link_all_packages")
 
-# Replace with a usage of your rule/macro
-filegroup(name = "empty")
+npm_link_all_packages(
+    name = "node_modules",
+)
 
 build_test(
     name = "smoke_test",
     targets = [
-        # targets you add above
-        ":empty",
+        "//examples/javascript:assembly",
     ],
 )

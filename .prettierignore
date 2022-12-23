@@ -1,2 +1,4 @@
 docs/*.md
 devbox.json
+e2e/workspace/package.json
+e2e/workspace/pnpm-lock.yaml

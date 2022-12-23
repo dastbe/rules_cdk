@@ -11,3 +11,9 @@ bzl_library(
     srcs = ["versions.bzl"],
     visibility = ["//cdk:__subpackages__"],
 )
+
+bzl_library(
+    name = "cdk_assembly",
+    srcs = ["assembly.bzl"],
+    visibility = ["//cdk:__subpackages__"],
+)
