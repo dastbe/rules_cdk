@@ -4,7 +4,8 @@
     "nodejs",
     "pre-commit",
     "awscli2",
-    "git-branchless"
+    "git-branchless",
+    "bazelisk"
   ],
   "shell": {
     "init_hook": null
