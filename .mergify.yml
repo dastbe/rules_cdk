@@ -25,3 +25,4 @@ queue_rules:
               - or:
                   - author=dastbe
       - check-success=ci-success
+    allow_inplace_checks: false
