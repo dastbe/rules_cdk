@@ -1,8 +1,8 @@
 const cdk = require("aws-cdk-lib");
-const s3 = require("aws-cdk-lib/aws-s3");
+const ecs = require("aws-cdk-lib/aws-ecs");
 
 const app = new cdk.App();
 const stack = new cdk.Stack(app, "TestStack");
-const bucket = new s3.Bucket(stack, "test-bucket", {});
+const bucket = new ecs.Cluster(stack, "test-cluster", {});
 
 app.synth();
