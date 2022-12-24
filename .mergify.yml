@@ -1,0 +1,18 @@
+pull_request_rules:
+  - name: default review rules
+    conditions:
+      - "#approved-reviews-by>=1"
+      - check-success=ci-success
+      - base=main
+      - label!=changes-planned
+    actions:
+      queue:
+        name: default
+        method: squash
+
+queue_rules:
+  - name: default
+    conditions:
+      - "#approved-reviews-by>=1"
+      - check-success=ci-success
+
