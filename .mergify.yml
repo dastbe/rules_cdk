@@ -1,7 +1,12 @@
 pull_request_rules:
   - name: default review rules
     conditions:
-      - "#approved-reviews-by>=1"
+      - or:
+          - "#approved-reviews-by>=1"
+          - and:
+              - label=force
+              - or:
+                  - author=dastbe
       - check-success=ci-success
       - base=main
       - label!=changes-planned
@@ -15,4 +20,3 @@ queue_rules:
     conditions:
       - "#approved-reviews-by>=1"
       - check-success=ci-success
-
