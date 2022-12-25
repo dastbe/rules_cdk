@@ -1,5 +1,5 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
-load("@contrib_rules_cdk//cdk:defs.bzl", "cdk_assembly", "cdk_deploy", "cdk_diff")
+load("@contrib_rules_cdk//cdk:defs.bzl", "cdk_assembly", "cdk_deploy", "cdk_destroy", "cdk_diff")
 
 js_library(
     name = "lib",
@@ -30,5 +30,10 @@ cdk_diff(
 
 cdk_deploy(
     name = "deploy",
+    assembly = ":assembly",
+)
+
+cdk_destroy(
+    name = "destroy",
     assembly = ":assembly",
 )
