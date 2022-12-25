@@ -1,8 +1,8 @@
 const cdk = require("aws-cdk-lib");
-const ecs = require("aws-cdk-lib/aws-ecs");
+const appmesh = require("aws-cdk-lib/aws-appmesh");
 
 const app = new cdk.App();
 const stack = new cdk.Stack(app, "TestStack");
-const bucket = new ecs.Cluster(stack, "test-cluster", {});
+const bucket = new appmesh.Mesh(stack, "test-mesh");
 
 app.synth();
