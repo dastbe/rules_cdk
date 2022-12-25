@@ -4,6 +4,7 @@ Add a basic smoke-test target below.
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@contrib_rules_cdk//cdk:defs.bzl", "cdk_bootstrap")
 
 npm_link_all_packages(
     name = "node_modules",
@@ -15,3 +16,5 @@ build_test(
         "//examples/javascript:assembly",
     ],
 )
+
+cdk_bootstrap(name = "bootstrap")
