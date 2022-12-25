@@ -31,7 +31,9 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "//cdk/private:cdk_assembly",
+        "//cdk/private:cdk_bootstrap",
         "//cdk/private:cdk_deploy",
+        "//cdk/private:cdk_destroy",
         "//cdk/private:cdk_diff",
     ],
 )
