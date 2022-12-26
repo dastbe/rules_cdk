@@ -95,7 +95,13 @@ jobs:
         run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc test //...
       - name: ls cache
         working-directory: ${{ matrix.folder }}
+        run: ls ~/.cache
+      - name: ls cache/bazel
+        working-directory: ${{ matrix.folder }}
         run: ls ~/.cache/bazel
+      - name: ls cache/bazel
+        working-directory: ${{ matrix.folder }}
+        run: ls ~/.cache/bazel-repo
 
       - name: ./test.sh
         # Run if there is a test.sh file in the folder
@@ -138,9 +144,7 @@ jobs:
       - name: Mount bazel caches
         uses: actions/cache@v3
         with:
-          path: |
-            "~/.cache/bazel"
-            "~/.cache/bazel-repo"
+          path: "~/.cache/bazel"
           key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE') }}
           restore-keys: bazel-cache-
       - name: Configure AWS Credentials
