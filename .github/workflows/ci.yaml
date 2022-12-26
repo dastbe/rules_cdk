@@ -71,7 +71,8 @@ jobs:
       - name: Mount bazel caches
         uses: actions/cache@v3
         with:
-          path: "~/.cache/bazel"
+          path: |
+            "~/.cache/bazel"
           key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE') }}
           restore-keys: bazel-cache-
 
