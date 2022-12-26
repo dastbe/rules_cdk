@@ -99,9 +99,12 @@ jobs:
       - name: ls cache/bazel
         working-directory: ${{ matrix.folder }}
         run: ls ~/.cache/bazel
-      - name: ls cache/bazel
+      - name: ls cache/bazel-repo
         working-directory: ${{ matrix.folder }}
         run: ls ~/.cache/bazel-repo
+      - name: which bazel
+        working-directory: ${{ matrix.folder }}
+        run: which bazel
 
       - name: ./test.sh
         # Run if there is a test.sh file in the folder
