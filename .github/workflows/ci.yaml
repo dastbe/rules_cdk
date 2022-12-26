@@ -57,6 +57,10 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
+      - name: Configure Bazel version
+        working-directory: ${{ matrix.folder }}
+        run: echo "${{ matrix.bazelversion }}" > .bazelversion
+
       # Cache build and external artifacts so that the next ci build is incremental.
       # Because github action caches cannot be updated after a build, we need to
       # store the contents of each build in a unique cache key, then fall back to loading
@@ -74,12 +78,8 @@ jobs:
           path: |
             ~/.cache/bazel
             ~/.cache/bazel-repo
-          key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE') }}
+          key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE', '.bazelversion') }}
           restore-keys: bazel-cache-
-
-      - name: Configure Bazel version
-        working-directory: ${{ matrix.folder }}
-        run: echo "${{ matrix.bazelversion }}" > .bazelversion
 
       - name: Check for test.sh
         # Checks for the existence of test.sh in the folder. Downstream steps can use
@@ -152,7 +152,7 @@ jobs:
           path: |
             ~/.cache/bazel
             ~/.cache/bazel-repo
-          key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE') }}
+          key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE', '.bazelversion') }}
           restore-keys: bazel-cache-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
