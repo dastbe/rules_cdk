@@ -1,4 +1,4 @@
-"""TODO"""
+"""General-purpose rule for execution an action against a CDK assembly using the currently configured AWS credentials"""
 
 CDK_ACTIONS = [
     "deploy",
@@ -44,8 +44,8 @@ cdk_exec = rule(
     implementation = _cdk_exec_impl,
     executable = True,
     attrs = {
-        "assembly": attr.label(mandatory = True, allow_single_file = True),
-        "cdk": attr.label(default = "@cdk//:cdk_bin", allow_single_file = True, executable = True, cfg = "exec"),
-        "action": attr.string(mandatory = True, values = CDK_ACTIONS),
+        "assembly": attr.label(mandatory = True, doc = "The cloud assembly to perform operations against", allow_single_file = True),
+        "cdk": attr.label(default = "@cdk//:cdk_bin", doc = "The CDK binary to perform actions with", allow_single_file = True, executable = True, cfg = "exec"),
+        "action": attr.string(mandatory = True, doc = "The action to perform on the cloud assembly", values = CDK_ACTIONS),
     },
 )
