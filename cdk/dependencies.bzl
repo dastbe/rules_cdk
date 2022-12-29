@@ -38,6 +38,7 @@ Please instead choose one of these available versions: {}""".format(cdk_version,
         additional_file_contents = {
             "BUILD.bazel": [
                 """load("@aspect_bazel_lib//lib:directory_path.bzl", "directory_path")""",
+                """load("@aspect_rules_js//js:defs.bzl", "js_binary")""",
                 """load("//:npm_link_all_packages.bzl", "npm_link_all_packages")""",
                 """npm_link_all_packages(name = "node_modules")""",
                 """directory_path(
@@ -49,6 +50,14 @@ Please instead choose one of these available versions: {}""".format(cdk_version,
                 """alias(
     name = "cdk",
     actual = ":node_modules/aws-cdk",
+    visibility = ["//visibility:public"],
+)""",
+                """js_binary(
+    name = "cdk_bin",
+    data = [
+        ":cdk",
+    ],
+    entry_point = ":cdk_entry_point",
     visibility = ["//visibility:public"],
 )""",
             ],
