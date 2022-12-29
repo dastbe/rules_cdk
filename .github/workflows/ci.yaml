@@ -107,6 +107,13 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - "//examples/javascript"
+          - "//examples/static"
+
     # only have one of these jobs running at any given time
     concurrency: deploy-examples
 
@@ -153,12 +160,18 @@ jobs:
           XDG_CACHE_HOME: ~/.cache/bazel-repo
         working-directory: "e2e/workspace"
         run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc build //...
-      - name: bazel run //examples/javascript:deploy
+      - name: bazel run :diff
         env:
           # Bazelisk will download bazel to here, ensure it is cached between runs.
           XDG_CACHE_HOME: ~/.cache/bazel-repo
         working-directory: "e2e/workspace"
-        run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc run //examples/javascript:deploy
+        run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc run ${{ matrix.target }}:diff
+      - name: bazel run :deploy
+        env:
+          # Bazelisk will download bazel to here, ensure it is cached between runs.
+          XDG_CACHE_HOME: ~/.cache/bazel-repo
+        working-directory: "e2e/workspace"
+        run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc run ${{ matrix.target }}:deploy
 
       - name: ./test.sh
         # Run if there is a test.sh file in the folder
