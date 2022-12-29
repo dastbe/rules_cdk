@@ -1,6 +1,15 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 bzl_library(
+    name = "cdk_exec",
+    srcs = ["exec.bzl"],
+    visibility = ["//cdk/private:__subpackages__"],
+    deps = [
+        "@aspect_rules_js//js:defs",
+    ],
+)
+
+bzl_library(
     name = "versions",
     srcs = ["versions.bzl"],
     visibility = ["//cdk:__subpackages__"],
@@ -23,6 +32,7 @@ bzl_library(
     srcs = ["deploy.bzl"],
     visibility = ["//cdk:__subpackages__"],
     deps = [
+        ":cdk_exec",
         "@aspect_rules_js//js:defs",
     ],
 )
@@ -32,6 +42,7 @@ bzl_library(
     srcs = ["destroy.bzl"],
     visibility = ["//cdk:__subpackages__"],
     deps = [
+        ":cdk_exec",
         "@aspect_rules_js//js:defs",
     ],
 )
@@ -41,6 +52,7 @@ bzl_library(
     srcs = ["diff.bzl"],
     visibility = ["//cdk:__subpackages__"],
     deps = [
+        ":cdk_exec",
         "@aspect_rules_js//js:defs",
     ],
 )

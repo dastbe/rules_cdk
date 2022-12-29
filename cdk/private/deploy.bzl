@@ -1,18 +1,10 @@
 """TODO"""
 
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load(":exec.bzl", "cdk_exec")
 
 def cdk_deploy(name, assembly):
-    js_binary(
+    cdk_exec(
         name = name,
-        data = [
-            assembly,
-            "@cdk//:cdk",
-        ],
-        entry_point = "@cdk//:cdk_entry_point",
-        args = [
-            "deploy",
-            "--app",
-            "$(location {assembly})".format(assembly = assembly),
-        ],
+        assembly = assembly,
+        action = "deploy",
     )
