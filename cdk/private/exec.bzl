@@ -15,15 +15,19 @@ WRITEABLE_CLOUD_ASSEMBLY=$(mktemp -d)
 cp -r $CLOUD_ASSEMBLY/. $WRITEABLE_CLOUD_ASSEMBLY
 chmod -R 755 $WRITEABLE_CLOUD_ASSEMBLY
 
-$(rootpath {cdk}) {action} --app $WRITEABLE_CLOUD_ASSEMBLY
+$(rootpath {cdk}) {action} --app $WRITEABLE_CLOUD_ASSEMBLY $@
 """
 
 def _cdk_exec_impl(ctx):
     script = ctx.actions.declare_file("%s.sh" % ctx.label.name)
-    script_content = ctx.expand_location(deploy_template.format(action = ctx.attr.action, 
-         assembly = ctx.attr.assembly.label, 
-         cdk = ctx.attr.cdk.label), 
-      targets = [ctx.attr.assembly, ctx.attr.cdk])
+    script_content = ctx.expand_location(
+        deploy_template.format(
+            action = ctx.attr.action,
+            assembly = ctx.attr.assembly.label,
+            cdk = ctx.attr.cdk.label,
+        ),
+        targets = [ctx.attr.assembly, ctx.attr.cdk],
+    )
 
     ctx.actions.write(script, script_content, is_executable = True)
 
