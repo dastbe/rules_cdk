@@ -1,4 +1,6 @@
 docs/*.md
 devbox.json
+cdk/private/v*/package.json
+cdk/private/v*/pnpm-lock.yaml
 e2e/workspace/package.json
 e2e/workspace/pnpm-lock.yaml
