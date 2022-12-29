@@ -27,6 +27,6 @@ def _cdk_assembly_impl(ctx):
 cdk_assembly = rule(
     implementation = _cdk_assembly_impl,
     attrs = {
-        "app": attr.label(mandatory = True, executable = True, cfg = "exec"),
+        "app": attr.label(mandatory = True, doc = "The CDK application used to generate the cloud assembly", executable = True, cfg = "exec"),
     },
 )
