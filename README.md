@@ -1,3 +1,5 @@
+test
+
 # Bazel rules for CDK
 
 **EXPERIMENTAL** This ruleset is still an experiment. Liable to have breaking
