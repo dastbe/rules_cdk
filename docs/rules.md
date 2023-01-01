@@ -10,7 +10,12 @@ Rules for generating CDK assemblies and deploying them
 cdk_assembly(<a href="#cdk_assembly-name">name</a>, <a href="#cdk_assembly-app">app</a>)
 </pre>
 
+Executes a binary target and generates a CDK cloud assembly
 
+The output of this rule can be consumed by rules to diff/deploy/destroy stacks
+from the cloud assembly. Alternatively, it can be referenced directly via
+`bazel query` and used with a user-installed CDK, or compressed and distributed
+independently.
 
 **ATTRIBUTES**
 
@@ -18,7 +23,7 @@ cdk_assembly(<a href="#cdk_assembly-name">name</a>, <a href="#cdk_assembly-app">
 | Name  | Description | Type | Mandatory | Default |
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="cdk_assembly-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
-| <a id="cdk_assembly-app"></a>app |  The CDK application used to generate the cloud assembly   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="cdk_assembly-app"></a>app |  An executable that generates a CDK cloud assembly   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
 
 
 <a id="cdk_bootstrap"></a>
