@@ -39,9 +39,15 @@ def _cdk_assembly_impl(ctx):
     return [DefaultInfo(files = depset([cdk_out]))]
 
 cdk_assembly = rule(
+    doc = """Executes a binary target and generates a CDK cloud assembly
+
+The output of this rule can be consumed by rules to diff/deploy/destroy stacks
+from the cloud assembly. Alternatively, it can be referenced directly via
+`bazel query` and used with a user-installed CDK, or compressed and distributed
+independently.""",
     implementation = _cdk_assembly_impl,
     attrs = {
-        "app": attr.label(mandatory = True, doc = "The CDK application used to generate the cloud assembly", executable = True, cfg = "exec"),
+        "app": attr.label(mandatory = True, doc = "An executable that generates a CDK cloud assembly", executable = True, cfg = "exec"),
     },
     toolchains = ["@rules_nodejs//nodejs:toolchain_type"],
 )
