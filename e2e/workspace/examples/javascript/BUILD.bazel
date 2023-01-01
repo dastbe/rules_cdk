@@ -10,7 +10,7 @@ js_library(
 )
 
 js_binary(
-    name = "bin",
+    name = "app",
     data = [
         ":lib",
     ],
@@ -19,7 +19,7 @@ js_binary(
 
 cdk_assembly(
     name = "assembly",
-    app = ":bin",
+    app = ":app",
     visibility = ["//visibility:public"],
 )
 

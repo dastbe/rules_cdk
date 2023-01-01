@@ -110,6 +110,7 @@ jobs:
       matrix:
         target:
           - "//examples/javascript"
+          - "//examples/golang"
           - "//examples/static"
 
     # only have one of these jobs running at any given time
