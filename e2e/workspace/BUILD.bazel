@@ -5,6 +5,7 @@ Add a basic smoke-test target below.
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@contrib_rules_cdk//cdk:defs.bzl", "cdk_bootstrap")
+load("@bazel_gazelle//:def.bzl", "gazelle")
 
 npm_link_all_packages(
     name = "node_modules",
@@ -14,7 +15,28 @@ build_test(
     name = "smoke_test",
     targets = [
         "//examples/javascript:assembly",
+        "//examples/golang:assembly",
     ],
+)
+
+# gazelle:prefix github.com/dastbe/rules_cdk/e2e/workplace
+gazelle(
+    name = "gazelle",
+    args = [
+        "-go_naming_convention=go_default_library",
+    ],
+    command = "update",
+)
+
+gazelle(
+    name = "gazelle-update-repos",
+    args = [
+        "-build_external=external",
+        "-from_file=go.mod",
+        "-to_macro=deps.bzl%go_dependencies",
+        "-prune",
+    ],
+    command = "update-repos",
 )
 
 cdk_bootstrap(name = "bootstrap")

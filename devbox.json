@@ -1,11 +1,11 @@
 {
   "packages": [
     "nodePackages.pnpm",
-    "nodejs",
     "pre-commit",
     "awscli2",
     "git-branchless",
-    "bazelisk"
+    "bazelisk",
+    "go"
   ],
   "shell": {
     "init_hook": null

@@ -1,0 +1,40 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@contrib_rules_cdk//cdk:defs.bzl", "cdk_assembly", "cdk_deploy", "cdk_destroy", "cdk_diff")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/dastbe/rules_cdk/e2e/workplace/examples/golang",
+    visibility = ["//visibility:private"],
+    deps = [
+        "@com_github_aws_aws_cdk_go_awscdk_v2//:go_default_library",
+        "@com_github_aws_aws_cdk_go_awscdk_v2//awsappmesh:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "app",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+cdk_assembly(
+    name = "assembly",
+    app = ":app",
+    visibility = ["//visibility:public"],
+)
+
+cdk_diff(
+    name = "diff",
+    assembly = ":assembly",
+)
+
+cdk_deploy(
+    name = "deploy",
+    assembly = ":assembly",
+)
+
+cdk_destroy(
+    name = "destroy",
+    assembly = ":assembly",
+)
