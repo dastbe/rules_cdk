@@ -5,6 +5,10 @@
     "internal_deps.bzl",
     "cdk/repositories.bzl",
     "cdk/private/latest/**",
-    "e2e/workplace/**"
+    "e2e/workplace/go.mod",
+    "e2e/workplace/go.sum",
+    "e2e/workplace/package.json",
+    "e2e/workplace/pnpm-lock.yaml",
+    "e2e/workplace/WORKSPACE"
   ]
 }
