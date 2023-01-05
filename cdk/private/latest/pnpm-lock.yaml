@@ -1,0 +1,25 @@
+lockfileVersion: 5.4
+
+specifiers:
+  aws-cdk: 2.59.0
+
+dependencies:
+  aws-cdk: 2.59.0
+
+packages:
+
+  /aws-cdk/2.59.0:
+    resolution: {integrity: sha512-5xKh+nC6wLsjYGwA+YYbX9ZonJLYmthxSZy8pK/Bm9rL2mFpnMKvQZJz67L6ghOt1XumoB1vZbIhptln68jTuw==}
+    engines: {node: '>= 14.15.0'}
+    hasBin: true
+    optionalDependencies:
+      fsevents: 2.3.2
+    dev: false
+
+  /fsevents/2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+    requiresBuild: true
+    dev: false
+    optional: true
