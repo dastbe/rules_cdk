@@ -37,9 +37,9 @@ def rules_cdk_dependencies():
 
     http_archive(
         name = "aspect_rules_js",
-        sha256 = "686d5b345592c1958b4aea24049d935ada11b83ae5538658d22b84b353cfbb1e",
-        strip_prefix = "rules_js-1.13.1",
-        url = "https://github.com/aspect-build/rules_js/archive/refs/tags/v1.13.1.tar.gz",
+        sha256 = "eea90eb89681338758a66c8c835224c97745ae5e3d0e1126d51cd09b953e1392",
+        strip_prefix = "rules_js-1.13.2",
+        url = "https://github.com/aspect-build/rules_js/archive/refs/tags/v1.13.2.tar.gz",
     )
 
     http_archive(
