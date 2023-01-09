@@ -6,15 +6,15 @@ load(":internal_deps.bzl", "rules_cdk_internal_deps")
 # Fetch deps needed only locally for development
 rules_cdk_internal_deps()
 
-load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
-
-# Necessary to make doc testing work, at least in bazel < 6.0.0
-aspect_bazel_lib_dependencies(override_local_config_platform = True)
-
 load("//cdk:repositories.bzl", "rules_cdk_dependencies")
 
 # Fetch dependencies which users need as well
 rules_cdk_dependencies()
+
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
+
+# Necessary to make doc testing work, at least in bazel < 6.0.0
+aspect_bazel_lib_dependencies(override_local_config_platform = True)
 
 # Fetch and register a nodejs interpreter, if you haven't already
 load("@rules_nodejs//nodejs:repositories.bzl", "DEFAULT_NODE_VERSION", "nodejs_register_toolchains")

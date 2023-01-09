@@ -39,10 +39,3 @@ def rules_cdk_internal_deps():
         sha256 = "3fd8fec4ddec3c670bd810904e2e33170bedfe12f90adf943508184be458c8bb",
         urls = ["https://github.com/bazelbuild/stardoc/releases/download/0.5.3/stardoc-0.5.3.tar.gz"],
     )
-
-    http_archive(
-        name = "aspect_bazel_lib",
-        sha256 = "931a562afb3ea1d2c828145d8ed65b32245bfb67e4ee7d73092bae7be8dd764f",
-        strip_prefix = "bazel-lib-1.19.2",
-        url = "https://github.com/aspect-build/bazel-lib/archive/refs/tags/v1.19.2.tar.gz",
-    )
