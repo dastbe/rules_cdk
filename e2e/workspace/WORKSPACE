@@ -74,7 +74,7 @@ gazelle_dependencies()
 # you should fetch it *before* calling this.
 # Alternatively, you can skip calling this function, so long as you've
 # already fetched all the dependencies.
-load("@contrib_rules_cdk//cdk:repositories.bzl", "rules_cdk_dependencies")
+load("@contrib_rules_cdk//cdk:dependencies.bzl", "rules_cdk_dependencies")
 
 rules_cdk_dependencies()
 
@@ -86,7 +86,7 @@ nodejs_register_toolchains(
     node_version = DEFAULT_NODE_VERSION,
 )
 
-load("@contrib_rules_cdk//cdk:dependencies.bzl", "cdk_repositories")
+load("@contrib_rules_cdk//cdk:repositories.bzl", "cdk_repositories")
 
 cdk_repositories()
 

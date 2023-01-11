@@ -6,7 +6,7 @@ load(":internal_deps.bzl", "rules_cdk_internal_deps")
 # Fetch deps needed only locally for development
 rules_cdk_internal_deps()
 
-load("//cdk:repositories.bzl", "rules_cdk_dependencies")
+load("//cdk:dependencies.bzl", "rules_cdk_dependencies")
 
 # Fetch dependencies which users need as well
 rules_cdk_dependencies()
@@ -24,7 +24,7 @@ nodejs_register_toolchains(
     node_version = DEFAULT_NODE_VERSION,
 )
 
-load("//cdk:dependencies.bzl", "cdk_repositories")
+load("//cdk:repositories.bzl", "cdk_repositories")
 
 cdk_repositories()
 
