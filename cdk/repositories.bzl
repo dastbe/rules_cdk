@@ -4,46 +4,62 @@ These are needed for local dev, and users must install them as well.
 See https://docs.bazel.build/versions/main/skylark/deploying.html#dependencies
 """
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", _http_archive = "http_archive")
-load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
+load("//cdk/private:versions.bzl", "TOOL_VERSIONS")
+load("@aspect_rules_js//npm:npm_import.bzl", _npm_translate_lock = "npm_translate_lock")
 
-def http_archive(name, **kwargs):
-    maybe(_http_archive, name = name, **kwargs)
+LATEST_VERSION = TOOL_VERSIONS[0]
 
-# WARNING: any changes in this function may be BREAKING CHANGES for users
-# because we'll fetch a dependency which may be different from one that
-# they were previously fetching later in their WORKSPACE setup, and now
-# ours took precedence. Such breakages are challenging for users, so any
-# changes in this function should be marked as BREAKING in the commit message
-# and released only in semver majors.
-# This is all fixed by bzlmod, so we just tolerate it for now.
-def rules_cdk_dependencies():
-    # The minimal version of bazel_skylib we require
-    http_archive(
-        name = "bazel_skylib",
-        sha256 = "74d544d96f4a5bb630d465ca8bbcfe231e3594e5aae57e1edbf17a6eb3ca2506",
-        urls = [
-            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.3.0/bazel-skylib-1.3.0.tar.gz",
-            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.3.0/bazel-skylib-1.3.0.tar.gz",
-        ],
-    )
+def cdk_repositories(cdk_version = LATEST_VERSION):
+    """
+    Fetch external tools needed for cdk
 
-    http_archive(
-        name = "aspect_bazel_lib",
-        sha256 = "20514864a32d94b2e3113dbf4d71572c908993d3235ea29a2d805a36195cd1e9",
-        strip_prefix = "bazel-lib-1.21.0",
-        url = "https://github.com/aspect-build/bazel-lib/archive/refs/tags/v1.21.0.tar.gz",
-    )
+    Args:
+        cdk_version: The cdk version to fetch.
 
-    http_archive(
-        name = "aspect_rules_js",
-        sha256 = "c4a5766a45dff25b2eb1789d7a2decfda81b281fc88350d24687620c37fefb25",
-        strip_prefix = "rules_js-1.14.0",
-        url = "https://github.com/aspect-build/rules_js/archive/refs/tags/v1.14.0.tar.gz",
-    )
+            See /cdk/private/versions.bzl for available versions.
+    """
 
-    http_archive(
-        name = "rules_nodejs",
-        sha256 = "08337d4fffc78f7fe648a93be12ea2fc4e8eb9795a4e6aa48595b66b34555626",
-        urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.0/rules_nodejs-core-5.8.0.tar.gz"],
+    # TODO(dastbe): This value is not overridable atm. Make it so
+    name = "cdk"
+    if cdk_version not in TOOL_VERSIONS:
+        fail("""
+cdk version {} is not currently mirrored into contrib_rules_cdk.
+Please instead choose one of these available versions: {}""".format(cdk_version, TOOL_VERSIONS))
+
+    _npm_translate_lock(
+        name = name,
+        pnpm_lock = "@contrib_rules_cdk//cdk/private:{version}/pnpm-lock.yaml".format(version = cdk_version),
+        # We'll be linking in the @foo repository and not the repository where the pnpm-lock file is located
+        link_workspace = name,
+        # Override the Bazel package where pnpm-lock.yaml is located and link to the specified package instead
+        root_package = "",
+        defs_bzl_filename = "npm_link_all_packages.bzl",
+        repositories_bzl_filename = "npm_repositories.bzl",
+        additional_file_contents = {
+            "BUILD.bazel": [
+                """load("@aspect_bazel_lib//lib:directory_path.bzl", "directory_path")""",
+                """load("@aspect_rules_js//js:defs.bzl", "js_binary")""",
+                """load("//:npm_link_all_packages.bzl", "npm_link_all_packages")""",
+                """npm_link_all_packages(name = "node_modules")""",
+                """directory_path(
+    name = "cdk_entry_point",
+    directory = ":node_modules/aws-cdk/dir",
+    path = "bin/cdk",
+    visibility = ["//visibility:public"],
+)""",
+                """alias(
+    name = "cdk",
+    actual = ":node_modules/aws-cdk",
+    visibility = ["//visibility:public"],
+)""",
+                """js_binary(
+    name = "cdk_bin",
+    data = [
+        ":cdk",
+    ],
+    entry_point = ":cdk_entry_point",
+    visibility = ["//visibility:public"],
+)""",
+            ],
+        },
     )
