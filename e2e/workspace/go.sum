@@ -10,6 +10,8 @@ github.com/aws/aws-cdk-go/awscdk/v2 v2.61.0 h1:o72xLY3HPuKcr2IYAw4a/2O6oKq2LfaLC
 github.com/aws/aws-cdk-go/awscdk/v2 v2.61.0/go.mod h1:q+ex2DD7kAiA97R8wz49wL1EzTUbAm8ylh+Wr1daKOE=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.61.1 h1:5M8HQPF3aydoJstLfnlV2WXGWWXjFWiFNU6jC08aNHw=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.61.1/go.mod h1:q+ex2DD7kAiA97R8wz49wL1EzTUbAm8ylh+Wr1daKOE=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.62.0 h1:b3KG4ZOW+NbY2gOWC0QvdJmReK2yn47h4hk9hLCwDTQ=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.62.0/go.mod h1:q+ex2DD7kAiA97R8wz49wL1EzTUbAm8ylh+Wr1daKOE=
 github.com/aws/constructs-go/constructs/v10 v10.1.189 h1:PmI42w6gXXcXBMZgx6KO0ndHb5xGyUcndV39/nPzxMU=
 github.com/aws/constructs-go/constructs/v10 v10.1.189/go.mod h1:Jx57tX1dGJwvmOiqKPIZEUDPY9xKRCd1zag5cg1u5aw=
 github.com/aws/constructs-go/constructs/v10 v10.1.209 h1:qExv2duAr/vdAUOfwFJ9J4N3Xf1ldWeRY4+38W6k0nE=
