@@ -39,11 +39,10 @@ bazel_skylib_workspace()
 
 ############################################
 # Gazelle, for generating bzl_library targets
-load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+load("@bazel_skylib_gazelle_plugin//:workspace.bzl", "bazel_skylib_gazelle_plugin_workspace")
 
-go_rules_dependencies()
+bazel_skylib_gazelle_plugin_workspace()
 
-go_register_toolchains(version = "1.19.3")
+load("@bazel_skylib_gazelle_plugin//:setup.bzl", "bazel_skylib_gazelle_plugin_setup")
 
-gazelle_dependencies()
+bazel_skylib_gazelle_plugin_setup()
