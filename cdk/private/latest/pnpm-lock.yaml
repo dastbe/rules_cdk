@@ -1,15 +1,15 @@
 lockfileVersion: 5.4
 
 specifiers:
-  aws-cdk: 2.63.0
+  aws-cdk: 2.63.1
 
 dependencies:
-  aws-cdk: 2.63.0
+  aws-cdk: 2.63.1
 
 packages:
 
-  /aws-cdk/2.63.0:
-    resolution: {integrity: sha512-2bv/egScdBxWnzcGkWT21Evi+20Qt356H4SqxQLskjhcjc+zvN9nsDNTJvI58BI/pkyU/K8cemHCKnBjBVdXkg==}
+  /aws-cdk/2.63.1:
+    resolution: {integrity: sha512-NJpKtbbyafwl2n3vAOE/AbZQ4r/8YZajUl389CNIB75QMkZ2ShxkdYzsvQ6WRfYS+u1U0+NMQ72KLqzb+Rv3NA==}
     engines: {node: '>= 14.15.0'}
     hasBin: true
     optionalDependencies:
