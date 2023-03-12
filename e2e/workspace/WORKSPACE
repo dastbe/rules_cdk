@@ -10,9 +10,9 @@ local_repository(
 
 http_archive(
     name = "aspect_rules_js",
-    sha256 = "10d593236b2adb1e289916f3dfc05f344cdb1012a35ca7c287871627aaae6a79",
-    strip_prefix = "rules_js-1.22.0",
-    url = "https://github.com/aspect-build/rules_js/archive/refs/tags/v1.22.0.tar.gz",
+    sha256 = "00e7b97b696af63812df0ca9e9dbd18579f3edd3ab9a56f227238b8405e4051c",
+    strip_prefix = "rules_js-1.23.0",
+    url = "https://github.com/aspect-build/rules_js/archive/refs/tags/v1.23.0.tar.gz",
 )
 
 http_archive(
