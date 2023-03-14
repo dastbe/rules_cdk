@@ -32,6 +32,8 @@ github.com/aws/aws-cdk-go/awscdk/v2 v2.67.0 h1:fKxY8oYygqp5rScwd6SaPLVM85uK3WrFD
 github.com/aws/aws-cdk-go/awscdk/v2 v2.67.0/go.mod h1:VUgy7k4jFLyep9Mm4f1aKLpji2w5nQs7mxDrw49SN40=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.68.0 h1:E36KX7omik91zsdqm6Ors6cC+9QiW2syv0ojOIXJRaU=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.68.0/go.mod h1:xzY1gUhPppU3jo/ckWLKzZOz8hGeDbCKwl4Io/rGx1s=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.69.0 h1:sHeF0GdTFSLbQgPeNNGpNEJUoZEnKslsjwLsI2que0w=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.69.0/go.mod h1:xzY1gUhPppU3jo/ckWLKzZOz8hGeDbCKwl4Io/rGx1s=
 github.com/aws/constructs-go/constructs/v10 v10.1.189 h1:PmI42w6gXXcXBMZgx6KO0ndHb5xGyUcndV39/nPzxMU=
 github.com/aws/constructs-go/constructs/v10 v10.1.189/go.mod h1:Jx57tX1dGJwvmOiqKPIZEUDPY9xKRCd1zag5cg1u5aw=
 github.com/aws/constructs-go/constructs/v10 v10.1.209 h1:qExv2duAr/vdAUOfwFJ9J4N3Xf1ldWeRY4+38W6k0nE=
