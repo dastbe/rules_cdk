@@ -38,6 +38,8 @@ github.com/aws/aws-cdk-go/awscdk/v2 v2.70.0 h1:jmwMjdiJWAsfk0xwn4dQkUxVnR79vS0kW
 github.com/aws/aws-cdk-go/awscdk/v2 v2.70.0/go.mod h1:xzY1gUhPppU3jo/ckWLKzZOz8hGeDbCKwl4Io/rGx1s=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.71.0 h1:Lf0WVU7Joy6t+vdIMJX4DGkKPqU7Y65Ihv51BLB9bgw=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.71.0/go.mod h1:xzY1gUhPppU3jo/ckWLKzZOz8hGeDbCKwl4Io/rGx1s=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.73.0 h1:1N/nhX7pEgG1oFnoIWZCQzKS8sgjQ760AmsPZDLy+Bk=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.73.0/go.mod h1:9iJvj+6EXwEG0W6ynS5N960MXMUD3VMhVKe12UkXTOc=
 github.com/aws/constructs-go/constructs/v10 v10.1.189 h1:PmI42w6gXXcXBMZgx6KO0ndHb5xGyUcndV39/nPzxMU=
 github.com/aws/constructs-go/constructs/v10 v10.1.189/go.mod h1:Jx57tX1dGJwvmOiqKPIZEUDPY9xKRCd1zag5cg1u5aw=
 github.com/aws/constructs-go/constructs/v10 v10.1.209 h1:qExv2duAr/vdAUOfwFJ9J4N3Xf1ldWeRY4+38W6k0nE=
@@ -68,6 +70,8 @@ github.com/aws/jsii-runtime-go v1.76.0 h1:LGkSEhyVgZTAN2axMdGNwpVk+DIJ8jg7iUn9gy
 github.com/aws/jsii-runtime-go v1.76.0/go.mod h1:1YWJ9VJ3bwe03Nsq2rsGFA0uQIiJZo0FEKfxK6j7cGg=
 github.com/aws/jsii-runtime-go v1.77.0 h1:jhb0H395us+QzIG3yUuzgoP63cL2YQPnSlMQ572WoYM=
 github.com/aws/jsii-runtime-go v1.77.0/go.mod h1:1YWJ9VJ3bwe03Nsq2rsGFA0uQIiJZo0FEKfxK6j7cGg=
+github.com/aws/jsii-runtime-go v1.78.1 h1:3yZi/iUlqe7SVLgbbEMge1vC4QxCC8vsgnuNENE9Qhk=
+github.com/aws/jsii-runtime-go v1.78.1/go.mod h1:4IGCggNIyxe54k/INmsXrEjx9hUYQGw2W7a1I5x6l78=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.30 h1:ryT4dP31QvXF7SO3mij6ir+8JBRaHyv1NSd2seUgpH4=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.30/go.mod h1:tlNrUd0+vEvsVTA0C1lE0p2txRPrnK53kb44hCuxdDI=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.49 h1:B4SHdaXpWWDcaX1uiLY8EZBqSkNkTVn8tIWjgupFuvY=
