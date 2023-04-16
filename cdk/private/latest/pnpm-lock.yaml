@@ -1,22 +1,21 @@
-lockfileVersion: 5.4
-
-specifiers:
-  aws-cdk: 2.71.0
+lockfileVersion: 6.0
 
 dependencies:
-  aws-cdk: 2.71.0
+  aws-cdk:
+    specifier: 2.74.0
+    version: 2.74.0
 
 packages:
 
-  /aws-cdk/2.71.0:
-    resolution: {integrity: sha512-vanN/suvCVBp1Qux7m72dTLkY+L+DIwRBZeb7PUcoic3CUeYeTNAl47sdlm/KMH+mAK4LOumecWVX2m56caHtA==}
+  /aws-cdk@2.74.0:
+    resolution: {integrity: sha512-pc6QO9uR7Ii0qQ74nujskkFqPCGoWTTMyt03CFaGW0CwxMfpduGC0+bvlLBbJISAe5ZGuRuYIIxxDMkNi3AIcw==}
     engines: {node: '>= 14.15.0'}
     hasBin: true
     optionalDependencies:
       fsevents: 2.3.2
     dev: false
 
-  /fsevents/2.3.2:
+  /fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
