@@ -50,6 +50,8 @@ github.com/aws/aws-cdk-go/awscdk/v2 v2.77.0 h1:Id1IfBjlaDvltY5SAc/jnLlCATNTvLTYr
 github.com/aws/aws-cdk-go/awscdk/v2 v2.77.0/go.mod h1:9iJvj+6EXwEG0W6ynS5N960MXMUD3VMhVKe12UkXTOc=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.79.1 h1:yF9VqARAyvt7KyCOWraP6LUCQp1Si+bX87pn4WpSrGA=
 github.com/aws/aws-cdk-go/awscdk/v2 v2.79.1/go.mod h1:XjXmivMDwzJBh/yX3tKA0lfdrvl/oNRykKmI3jZ90hw=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.80.0 h1:kIdfrGevtwiWksiqYmPcBva87zh2eBk0MobYD6uR13c=
+github.com/aws/aws-cdk-go/awscdk/v2 v2.80.0/go.mod h1:wk7IiL79HMGV1MgJD4bCYwqOoPIYHqP7xyN5/ASyyfo=
 github.com/aws/constructs-go/constructs/v10 v10.1.189 h1:PmI42w6gXXcXBMZgx6KO0ndHb5xGyUcndV39/nPzxMU=
 github.com/aws/constructs-go/constructs/v10 v10.1.189/go.mod h1:Jx57tX1dGJwvmOiqKPIZEUDPY9xKRCd1zag5cg1u5aw=
 github.com/aws/constructs-go/constructs/v10 v10.1.209 h1:qExv2duAr/vdAUOfwFJ9J4N3Xf1ldWeRY4+38W6k0nE=
@@ -70,6 +72,8 @@ github.com/aws/constructs-go/constructs/v10 v10.1.270 h1:MDjG2YpaauSCjl230HLRo+A
 github.com/aws/constructs-go/constructs/v10 v10.1.270/go.mod h1:0kRYiOOoiEo4YOzVYzonyhdYs78G89qLl0YeasyIONA=
 github.com/aws/constructs-go/constructs/v10 v10.2.17 h1:CDb8YgswE+JvHgC5uDe8tueAP8ThmiBsdowvtjqwl7k=
 github.com/aws/constructs-go/constructs/v10 v10.2.17/go.mod h1:sFQf3cm+dibw1DxQXZa+m7HYiTQ3yE9qveP+Ux3m4WE=
+github.com/aws/constructs-go/constructs/v10 v10.2.26 h1:mAZE2LDalT/1ySrQZEl54hzghsySWosLxWYo+5b+/3U=
+github.com/aws/constructs-go/constructs/v10 v10.2.26/go.mod h1:auRY1XPWnLxvn5fR3sZ9SsYOxH/BCQC697s4Yw8B7tk=
 github.com/aws/jsii-runtime-go v1.72.0 h1:5jMBCUu/qINj0hSt08gkyVyKRbrRBb9RV8ETGxTb+lo=
 github.com/aws/jsii-runtime-go v1.72.0/go.mod h1:lExVNqTnEcbS/NMnuovDrHohgmPK3IsGdqvaYLA+N1s=
 github.com/aws/jsii-runtime-go v1.73.0 h1:4ncTOPq5SAHI0KgkP1ZdH49hRYVE3VCOZKqtilvvbnc=
@@ -86,6 +90,8 @@ github.com/aws/jsii-runtime-go v1.78.1 h1:3yZi/iUlqe7SVLgbbEMge1vC4QxCC8vsgnuNEN
 github.com/aws/jsii-runtime-go v1.78.1/go.mod h1:4IGCggNIyxe54k/INmsXrEjx9hUYQGw2W7a1I5x6l78=
 github.com/aws/jsii-runtime-go v1.80.0 h1:INbbvOdx/UV/+qH4cGmKStCWL4SrEoRwF34nR/3b8tE=
 github.com/aws/jsii-runtime-go v1.80.0/go.mod h1:bV9T+Vxxczx5bK5CKZraDQS+enxb1sgdjAo/AhePGlM=
+github.com/aws/jsii-runtime-go v1.81.0 h1:/8w1btK2Qy+gH0g/nUQ4z5ugvkWZENgHnKAAyjGwio8=
+github.com/aws/jsii-runtime-go v1.81.0/go.mod h1:jcw8fMGc0z+jAZM6x7QAti8IYUUgpxnV5BxZsrXIT9M=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.30 h1:ryT4dP31QvXF7SO3mij6ir+8JBRaHyv1NSd2seUgpH4=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.30/go.mod h1:tlNrUd0+vEvsVTA0C1lE0p2txRPrnK53kb44hCuxdDI=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.49 h1:B4SHdaXpWWDcaX1uiLY8EZBqSkNkTVn8tIWjgupFuvY=
@@ -102,6 +108,8 @@ github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.97 h1:djh/IxEOenTcd3r
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.97/go.mod h1:PkuOc2PJS/vvkezj7ROedaZ9RrIH6BFy07izhAn4ZQ8=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.165 h1:oQaRRZP7PGnGjVbWdT+rO3RNbg6G4zcywcitpqd9Uzo=
 github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.165/go.mod h1:9C2/RJqB6OU4j+G4MPx/p6sNQauLsr8/xeSAacytVU8=
+github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.177 h1:NwrkIwocyYMzEb+FUnkmAR92ZbPdDFx6H3YkzGThJIE=
+github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.177/go.mod h1:zi5wzxD1EhDSZ2DIt9OBRgu5N0ouyaLbBwBDpjM9D1I=
 github.com/cdklabs/awscdk-asset-kubectl-go/kubectlv20/v2 v2.1.1 h1:l5N27aCCjAB5cgW5pI4/ujnasPL8hUcJ9KBxrKk6UiQ=
 github.com/cdklabs/awscdk-asset-kubectl-go/kubectlv20/v2 v2.1.1/go.mod h1:CvFHBo0qcg8LUkJqIxQtP1rD/sNGv9bX3L2vHT2FUAo=
 github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv5/v2 v2.0.38 h1:IgRq7F3odfHx5cnb+ejlMV+jGTmNOH7pJnSt8ownfvc=
@@ -118,3 +126,5 @@ github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv5/v2 v2.0.77 
 github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv5/v2 v2.0.77/go.mod h1:xuNRPgwJuKObjPrOjEI7kv7A0Z8F1lNiwSdCEFJQfMc=
 github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv5/v2 v2.0.139 h1:/B9rZrreyE+uzPr+27aYe23ZyVeUx3g2MIuY7RZ5ssQ=
 github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv5/v2 v2.0.139/go.mod h1:qQDQrtZoVB1KTN/m6HJswaL7RMHAj8QCV8NGU5gDIE0=
+github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv5/v2 v2.0.148 h1:EYJf4AJZu3dfRi1kUGL/KYpB8oGM7YiAO5gduSk6428=
+github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv5/v2 v2.0.148/go.mod h1:ijFFZkl36TAyu4+h1Abbo8aKUpIzKaDEfXr+LjbaGOA=
