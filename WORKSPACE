@@ -11,9 +11,14 @@ load("//cdk:dependencies.bzl", "rules_cdk_dependencies")
 # Fetch dependencies which users need as well
 rules_cdk_dependencies()
 
-load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
+# Load stardoc dependencies
+load("@io_bazel_stardoc//:setup.bzl", "stardoc_repositories")
+
+stardoc_repositories()
 
 # Necessary to make doc testing work, at least in bazel < 6.0.0
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
+
 aspect_bazel_lib_dependencies(override_local_config_platform = True)
 
 # Fetch and register a nodejs interpreter, if you haven't already
