@@ -3,7 +3,7 @@
   "extends": ["config:base"],
   "includePaths": [
     "internal_deps.bzl",
-    "cdk/repositories.bzl",
+    "cdk/dependencies.bzl",
     "cdk/private/latest/**",
     "e2e/workspace/**"
   ]
