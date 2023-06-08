@@ -1,14 +1,21 @@
-lockfileVersion: 6.0
+lockfileVersion: '6.1'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
 
 dependencies:
   aws-cdk:
-    specifier: 2.74.0
-    version: 2.74.0
+    specifier: 2.81.0
+    version: 2.81.0
+  fsevents:
+    specifier: 2.3.2
+    version: 2.3.2
 
 packages:
 
-  /aws-cdk@2.74.0:
-    resolution: {integrity: sha512-pc6QO9uR7Ii0qQ74nujskkFqPCGoWTTMyt03CFaGW0CwxMfpduGC0+bvlLBbJISAe5ZGuRuYIIxxDMkNi3AIcw==}
+  /aws-cdk@2.81.0:
+    resolution: {integrity: sha512-EEwacXaauxHmVBLQzbFDOcjJOAZw57vzUQDJ7eDl3MIDSrKG2dZ1XYHVuMbSloqJpgDW6xZ9vAZ45rXTTjdSzw==}
     engines: {node: '>= 14.15.0'}
     hasBin: true
     optionalDependencies:
@@ -19,6 +26,4 @@ packages:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
-    requiresBuild: true
     dev: false
-    optional: true
