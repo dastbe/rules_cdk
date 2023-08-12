@@ -46,5 +46,5 @@ def rules_cdk_dependencies():
     http_archive(
         name = "rules_nodejs",
         sha256 = "8fc8e300cb67b89ceebd5b8ba6896ff273c84f6099fc88d23f24e7102319d8fd",
-        urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.4/rules_nodejs-core-5.8.4.tar.gz"],
+        urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/v6.0.1/rules_nodejs-core-5.8.4.tar.gz"],
     )
