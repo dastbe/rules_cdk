@@ -30,9 +30,9 @@ def rules_cdk_dependencies():
 
     http_archive(
         name = "aspect_bazel_lib",
-        sha256 = "44f4f6d1ea1fc5a79ed6ca83f875038fee0a0c47db4f9c9beed097e56f8fad03",
-        strip_prefix = "bazel-lib-1.34.0",
-        url = "https://github.com/aspect-build/bazel-lib/releases/download/v1.34.0/bazel-lib-v1.34.0.tar.gz",
+        sha256 = "b44310bef17d33d0e34a624dbbc74de595d37adc16546bd612d6f178eac426e7",
+        strip_prefix = "bazel-lib-1.34.2",
+        url = "https://github.com/aspect-build/bazel-lib/releases/download/v1.34.2/bazel-lib-v1.34.2.tar.gz",
     )
 
     http_archive(
