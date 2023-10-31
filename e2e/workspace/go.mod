@@ -2,7 +2,7 @@ module github.com/dastbe/rules_cdk/e2e/workspace
 
 go 1.19
 
-require github.com/aws/aws-cdk-go/awscdk/v2 v2.100.0
+require github.com/aws/aws-cdk-go/awscdk/v2 v2.103.1
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
