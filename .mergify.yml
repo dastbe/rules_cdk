@@ -21,6 +21,7 @@ queue_rules:
     conditions:
       - or:
           - "#approved-reviews-by>=1"
+          - author=renovate[bot]
           - and:
               - label=force
               - or:
