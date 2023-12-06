@@ -6,16 +6,16 @@ settings:
 
 dependencies:
   aws-cdk:
-    specifier: 2.114.0
-    version: 2.114.0
+    specifier: 2.114.1
+    version: 2.114.1
   fsevents:
     specifier: 2.3.3
     version: 2.3.3
 
 packages:
 
-  /aws-cdk@2.114.0:
-    resolution: {integrity: sha512-Zm66kXjsCFbeYi4WA93IOEw8+fkU+VamLE2NecX3IU0B3/VFbT54yt4tF3ZmN8vfV2OYHqj66Zbt0gODDZqb1A==}
+  /aws-cdk@2.114.1:
+    resolution: {integrity: sha512-iLOCPb3WAJOgVYQ4GvAnrjtScJfPwcczlB4995h3nUYQdHbus0jNffFv13zBShdWct3cuX+bqLuZ4JyEmJ9+rg==}
     engines: {node: '>= 14.15.0'}
     hasBin: true
     optionalDependencies:
