@@ -45,7 +45,7 @@ def rules_cdk_dependencies():
 
     http_archive(
         name = "rules_nodejs",
-        sha256 = "162f4adfd719ba42b8a6f16030a20f434dc110c65dc608660ef7b3411c9873f9",
-        strip_prefix = "rules_nodejs-6.0.2",
-        urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/v6.0.2/rules_nodejs-v6.0.2.tar.gz"],
+        sha256 = "a50986c7d2f2dc43a5b9b81a6245fd89bdc4866f1d5e316d9cef2782dd859292",
+        strip_prefix = "rules_nodejs-6.0.5",
+        urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/v6.0.5/rules_nodejs-v6.0.5.tar.gz"],
     )
