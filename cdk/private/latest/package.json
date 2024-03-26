@@ -1,6 +1,6 @@
 {
 	"dependencies": {
-		"aws-cdk": "2.114.1",
+		"aws-cdk": "2.134.0",
 		"fsevents": "2.3.3"
 	}
 }
