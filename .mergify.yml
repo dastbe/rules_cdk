@@ -1,6 +1,12 @@
+
 pull_request_rules:
-  - name: default review rules
-    conditions:
+  - name: refactored queue action rule
+    conditions: []
+    actions:
+      queue:
+queue_rules:
+  - name: default
+    queue_conditions:
       - or:
           - "#approved-reviews-by>=1"
           - author=renovate[bot]
@@ -11,14 +17,7 @@ pull_request_rules:
       - check-success=ci-success
       - base=main
       - label!=changes-planned
-    actions:
-      queue:
-        name: default
-        method: squash
-
-queue_rules:
-  - name: default
-    conditions:
+    merge_conditions:
       - or:
           - "#approved-reviews-by>=1"
           - author=renovate[bot]
@@ -28,3 +27,4 @@ queue_rules:
                   - author=dastbe
       - check-success=ci-success
     allow_inplace_checks: false
+    merge_method: squash
