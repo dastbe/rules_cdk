@@ -15,9 +15,9 @@ def rules_cdk_internal_deps():
 
     http_archive(
         name = "bazel_skylib",
-        sha256 = "118e313990135890ee4cc8504e32929844f9578804a1b2f571d69b1dd080cfb8",
-        strip_prefix = "bazel-skylib-1.5.0",
-        urls = ["https://github.com/bazelbuild/bazel-skylib/archive/refs/tags/1.5.0.tar.gz"],
+        sha256 = "db8d42f8d70df13733ffc221230272058b71c504b2203819de470d59657c35df",
+        strip_prefix = "bazel-skylib-1.9.2",
+        urls = ["https://github.com/bazelbuild/bazel-skylib/archive/refs/tags/1.9.2.tar.gz"],
     )
 
     http_archive(
