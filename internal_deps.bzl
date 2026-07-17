@@ -22,8 +22,8 @@ def rules_cdk_internal_deps():
 
     http_archive(
         name = "bazel_skylib_gazelle_plugin",
-        sha256 = "747addf3f508186234f6232674dd7786743efb8c68619aece5fb0cac97b8f415",
-        urls = ["https://github.com/bazelbuild/bazel-skylib/releases/download/1.5.0/bazel-skylib-gazelle-plugin-1.5.0.tar.gz"],
+        sha256 = "ebcbf7bc491b28332c40b2db524d0a37e2e8feebbf099ad51561531c1efbba47",
+        urls = ["https://github.com/bazelbuild/bazel-skylib/releases/download/1.9.2/bazel-skylib-gazelle-plugin-1.9.2.tar.gz"],
     )
 
     http_archive(
