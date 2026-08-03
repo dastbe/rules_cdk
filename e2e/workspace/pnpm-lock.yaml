@@ -5,8 +5,8 @@ specifiers:
   constructs: ^10.1.198
 
 dependencies:
-  aws-cdk-lib: 2.56.1_constructs@10.1.198
-  constructs: 10.1.198
+  aws-cdk-lib: 2.56.1_constructs@10.8.1
+  constructs: 10.8.1
 
 packages:
 
@@ -31,7 +31,7 @@ packages:
     engines: {node: '>= 4.0.0'}
     dev: false
 
-  /aws-cdk-lib/2.56.1_constructs@10.1.198:
+  /aws-cdk-lib/2.56.1_constructs@10.8.1:
     resolution: {integrity: sha512-3/dcJmZQHMnQseKRs2r+RstbLJvXwx+A9aJyeBBEF6qJ0BbxGwOYLsWZeLAcvCDf6DcxuYO3lVf88SlQDz8X+w==}
     engines: {node: '>= 14.15.0'}
     peerDependencies:
@@ -42,7 +42,7 @@ packages:
       '@aws-cdk/asset-node-proxy-agent-v5': 2.0.38
       '@balena/dockerignore': 1.0.2
       case: 1.6.3
-      constructs: 10.1.198
+      constructs: 10.8.1
       fs-extra: 9.1.0
       ignore: 5.2.4
       jsonschema: 1.4.1
@@ -82,9 +82,8 @@ packages:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
     dev: false
 
-  /constructs/10.1.198:
-    resolution: {integrity: sha512-1WJdJdjoi/GUwvt9hYbPAec4RCq5oylVxmccIZuU2aFPiJjL6xDJbg+2tpZw6kJ+CNwxPGehESL+A7VJ74NGDQ==}
-    engines: {node: '>= 14.17.0'}
+  /constructs/10.8.1:
+    resolution: {integrity: sha512-98yGXYyhePqPYh3cYu8nzBERmAhC0DONe3UD03okK0nehZ7hYP4wgZuf02a04+uOWxnTJ5Rpp5m0GRNpwyLGGA==}
     dev: false
 
   /fs-extra/9.1.0:
