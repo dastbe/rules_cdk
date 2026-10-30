@@ -1,48 +1,56 @@
-From a13c680509f7816fce244601b462df323f5ae0ba Mon Sep 17 00:00:00 2001
+From 7a8bc6d88b1894ceb7f3f3d09f27fdb3860eff5e Mon Sep 17 00:00:00 2001
 From: dastbe <dastbe@gmail.com>
 Date: Fri, 30 Oct 2026 16:25:22 +0000
-Subject: [PATCH] starlark: add 'name = load("module")' to bind a whole module
+Subject: [PATCH] starlark: add 'name = load("module", ...)' to bind a module
+ value
 
 Behind the new syntax.FileOptions.LoadModule option, a load statement
 may appear as the right-hand side of an assignment to a single
-identifier, with no symbols listed. The identifier is bound to a
-*starlark.LoadedModule whose attributes are the module's exported
-(non-underscore) members, so callers can write lib.f().
+identifier. Whereas an ordinary load binds the listed names in the
+file scope, the assignment form binds them as attributes of a
+*starlark.LoadedModule assigned to the identifier:
 
-- syntax: LoadStmt.Alias; parser accepts IDENT '=' load(STRING)
-- resolve: Alias is bound like any other load binding
-- compile: new LOADMODULE opcode; bytecode Version 15
+    lib = load("lib.star", "f", h="g")   # lib.f, lib.h
+    lib = load("lib.star")                 # all exported names
+
+The name list may be omitted only in the assignment form, in which case
+the module value has every exported (non-underscore) member.
+
+- syntax: LoadStmt.Alias; parser accepts IDENT '=' load(...)
+- resolve: Alias is bound like any other load binding; listed names
+  are attributes, not file-scope bindings
+- compile: new LOADMODULE<n> opcode; bytecode Version 15
 - starlark: LoadedModule value; LOAD/LOADMODULE share Thread.load
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01RQkJsyThCiRZxeZr2ymEyZ
 ---
- doc/spec.md                           | 25 +++++++++++
- internal/compile/compile.go           | 18 +++++++-
- resolve/resolve.go                    | 27 +++++++----
+ doc/spec.md                           | 28 +++++++++
+ internal/compile/compile.go           | 26 +++++++-
+ resolve/resolve.go                    | 37 +++++++++---
  resolve/resolve_test.go               |  1 +
- resolve/testdata/resolve.star         | 27 +++++++++++
+ resolve/testdata/resolve.star         | 48 +++++++++++++++
  starlark/eval_test.go                 |  2 +
- starlark/interp.go                    | 49 +++++++++++++++-----
- starlark/loadedmodule.go              | 54 ++++++++++++++++++++++
- starlark/testdata/loadmodule.star     | 65 +++++++++++++++++++++++++++
- starlark/testdata/loadmodule_lib.star | 15 +++++++
+ starlark/interp.go                    | 83 ++++++++++++++++++++++----
+ starlark/loadedmodule.go              | 50 ++++++++++++++++
+ starlark/testdata/loadmodule.star     | 86 +++++++++++++++++++++++++++
+ starlark/testdata/loadmodule_lib.star | 15 +++++
  syntax/options.go                     |  1 +
- syntax/parse.go                       | 24 ++++++++--
- syntax/parse_test.go                  | 13 +++++-
- syntax/syntax.go                      | 10 +++++
- syntax/testdata/errors.star           | 32 +++++++++++++
- syntax/walk.go                        |  3 ++
- 16 files changed, 339 insertions(+), 27 deletions(-)
+ syntax/parse.go                       | 20 ++++++-
+ syntax/parse_test.go                  | 15 ++++-
+ syntax/syntax.go                      | 11 ++++
+ syntax/testdata/errors.star           | 38 ++++++++++++
+ syntax/walk.go                        |  3 +
+ 16 files changed, 438 insertions(+), 26 deletions(-)
  create mode 100644 starlark/loadedmodule.go
  create mode 100644 starlark/testdata/loadmodule.star
  create mode 100644 starlark/testdata/loadmodule_lib.star
 
 diff --git a/doc/spec.md b/doc/spec.md
-index 29a38cb..4f3d1dc 100644
+index 29a38cb..175ec88 100644
 --- a/doc/spec.md
 +++ b/doc/spec.md
-@@ -2870,6 +2870,31 @@ load("module.star", "x", y2="y", "z")    # assigns x, y2, and z
+@@ -2870,6 +2870,34 @@ load("module.star", "x", y2="y", "z")    # assigns x, y2, and z
  
  A load statement may not be nested inside any other statement.
  
@@ -50,32 +58,35 @@ index 29a38cb..4f3d1dc 100644
 +The Go implementation of Starlark permits an additional form of the
 +load statement when the `LoadModule` file option is enabled.
 +In this form, the load appears on the right-hand side of an assignment
-+to a single identifier, and names no symbols to extract:
++to a single identifier:
 +
 +```grammar {.good}
-+LoadModuleStmt = identifier '=' 'load' '(' string [','] ')' .
++LoadModuleStmt = identifier '=' 'load' '(' string {',' [identifier '='] string} [','] ')' .
 +```
 +
-+It binds the identifier to a value of type `module` representing the
-+entire loaded module. Its attributes are the module's exported
-+globals, that is, those whose names do not start with `_`:
++Whereas an ordinary load statement binds the listed names in the file
++scope, this form binds them as attributes of a single value of type
++`module`, which it assigns to the identifier.
++If no names are listed, the module value has an attribute for each of
++the loaded module's exported globals, that is, those whose names do not
++start with `_`:
 +
 +```python
-+lib = load("lib.star")
-+lib.f(1)                  # calls f, defined in lib.star
-+lib._g                    # error: module has no ._g field or method
++lib = load("lib.star")                 # lib.f, lib.g, ... (all exported names)
++lib = load("lib.star", "f", h="g")     # lib.f and lib.h only
++lib.f(1)
++lib._g                                 # error: module has no ._g field or method
 +```
 +
 +Like the names bound by an ordinary load statement, the identifier is
 +local to the file, and the statement may not be nested inside any
 +other statement. `load` is not otherwise an expression:
 +`f(load("lib.star"))` is a syntax error.
-+
  
  ## Module execution
  
 diff --git a/internal/compile/compile.go b/internal/compile/compile.go
-index 31f3f12..5ab501a 100644
+index 31f3f12..252914f 100644
 --- a/internal/compile/compile.go
 +++ b/internal/compile/compile.go
 @@ -46,7 +46,7 @@ var Disassemble = false
@@ -87,14 +98,14 @@ index 31f3f12..5ab501a 100644
  
  type Opcode uint8
  
-@@ -112,6 +112,7 @@ const (
- 	INPLACE_ADD  //            x y INPLACE_ADD  z      where z is x+y or x.extend(y)
- 	INPLACE_PIPE //            x y INPLACE_PIPE z      where z is x|y
- 	MAKEDICT     //              - MAKEDICT     dict
-+	LOADMODULE   //         module LOADMODULE   value  [value represents the entire loaded module]
- 
- 	// --- opcodes with an argument must go below this line ---
- 
+@@ -126,6 +126,7 @@ const (
+ 	MAKELIST     //         x1 ... xn MAKELIST<n>         list
+ 	MAKEFUNC     // defaults+freevars MAKEFUNC<func>      fn
+ 	LOAD         //   from1 ... fromN module LOAD<n>      v1 ... vN
++	LOADMODULE   // to1 from1 ... toN fromN module LOADMODULE<n> value  [n=0: all exported names]
+ 	SETLOCAL     //             value SETLOCAL<local>     -
+ 	SETGLOBAL    //             value SETGLOBAL<global>   -
+ 	LOCAL        //                 - LOCAL<local>        value
 @@ -184,6 +185,7 @@ var opcodeNames = [...]string{
  	JMP:          "jmp",
  	LE:           "le",
@@ -107,16 +118,38 @@ index 31f3f12..5ab501a 100644
  	JMP:          0,
  	LE:           -1,
  	LOAD:         -1,
-+	LOADMODULE:   0,
++	LOADMODULE:   variableStackEffect,
  	LOCAL:        +1,
  	LOCALCELL:    +1,
  	LT:           -1,
-@@ -1221,6 +1224,19 @@ func (fcomp *fcomp) stmt(stmt syntax.Stmt) {
+@@ -720,6 +723,8 @@ func (insn *insn) stackeffect() int {
+ 			//  0 for cjmp/true/exhausted
+ 			// Handled specially in caller.
+ 			se = 0
++		case LOADMODULE:
++			se = -2 * arg
+ 		case MAKELIST, MAKETUPLE:
+ 			se = 1 - arg
+ 		case UNPACK:
+@@ -891,7 +896,7 @@ func PrintOp(fn *Funcode, pc uint32, op Opcode, arg uint32) {
+ 	case CALL, CALL_VAR, CALL_KW, CALL_VAR_KW:
+ 		comment = fmt.Sprintf("%d pos, %d named", arg>>8, arg&0xff)
+ 	default:
+-		// JMP, CJMP, ITERJMP, MAKETUPLE, MAKELIST, LOAD, UNPACK:
++		// JMP, CJMP, ITERJMP, MAKETUPLE, MAKELIST, LOAD, LOADMODULE, UNPACK:
+ 		// arg is just a number
+ 	}
+ 	var buf bytes.Buffer
+@@ -1221,6 +1226,23 @@ func (fcomp *fcomp) stmt(stmt syntax.Stmt) {
  		fcomp.block = fcomp.newBlock() // dead code
  
  	case *syntax.LoadStmt:
 +		if stmt.Alias != nil {
-+			// name = load("module")
++			// name = load("module", ...)
++			for i := range stmt.From {
++				fcomp.string(stmt.To[i].Name)
++				fcomp.string(stmt.From[i].Name)
++			}
 +			module := stmt.Module.Value.(string)
 +			fcomp.pcomp.prog.Loads = append(fcomp.pcomp.prog.Loads, Binding{
 +				Name: module,
@@ -124,7 +157,7 @@ index 31f3f12..5ab501a 100644
 +			})
 +			fcomp.string(module)
 +			fcomp.setPos(stmt.Load)
-+			fcomp.emit(LOADMODULE)
++			fcomp.emit1(LOADMODULE, uint32(len(stmt.From)))
 +			fcomp.set(stmt.Alias)
 +			break
 +		}
@@ -132,26 +165,29 @@ index 31f3f12..5ab501a 100644
  			fcomp.string(stmt.From[i].Name)
  		}
 diff --git a/resolve/resolve.go b/resolve/resolve.go
-index 4d046b3..f1f57d7 100644
+index 4d046b3..4b73b6f 100644
 --- a/resolve/resolve.go
 +++ b/resolve/resolve.go
-@@ -579,6 +579,11 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
+@@ -579,6 +579,15 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
  			r.errorf(stmt.Load, "load statement within a conditional")
  		}
  
 +		if stmt.Alias != nil {
-+			// name = load("module")
++			// name = load("module", ...)
 +			r.bindLoad(stmt.Alias)
 +		}
 +
++		var attrs map[string]bool // attribute names of the module value (assignment form)
++		if stmt.Alias != nil {
++			attrs = make(map[string]bool)
++		}
  		for i, from := range stmt.From {
  			if from.Name == "" {
  				r.errorf(from.NamePos, "load: empty identifier")
-@@ -588,15 +593,7 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
- 				r.errorf(from.NamePos, "load: names with leading underscores are not exported: %s", from.Name)
+@@ -589,14 +598,16 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
  			}
  
--			id := stmt.To[i]
+ 			id := stmt.To[i]
 -			if r.options.LoadBindsGlobally {
 -				r.bind(id)
 -			} else if r.bindLocal(id) && !r.options.GlobalReassign {
@@ -159,12 +195,20 @@ index 4d046b3..f1f57d7 100644
 -				// Sadly we can't report the previous declaration
 -				// as id.Binding may not be set yet.
 -				r.errorf(id.NamePos, "cannot reassign top-level %s", id.Name)
--			}
-+			r.bindLoad(stmt.To[i])
++			if attrs != nil {
++				// The name is an attribute of the module value,
++				// not a binding in the file scope.
++				if attrs[id.Name] {
++					r.errorf(id.NamePos, "load: duplicate name %s", id.Name)
++				}
++				attrs[id.Name] = true
++				continue
+ 			}
++			r.bindLoad(id)
  		}
  
  	default:
-@@ -604,6 +601,18 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
+@@ -604,6 +615,18 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
  	}
  }
  
@@ -196,10 +240,10 @@ index 31bba18..1b15b72 100644
  	}
  }
 diff --git a/resolve/testdata/resolve.star b/resolve/testdata/resolve.star
-index 55612c8..db45752 100644
+index 55612c8..43a00fe 100644
 --- a/resolve/testdata/resolve.star
 +++ b/resolve/testdata/resolve.star
-@@ -393,3 +393,30 @@ load("module", "x") # ok
+@@ -393,3 +393,51 @@ load("module", "x") # ok
  ---
  _ = x # forward ref to file-local
  load("module", "x") # ok
@@ -230,6 +274,27 @@ index 55612c8..db45752 100644
 +# option:loadmodule option:toplevelcontrol
 +if M:
 +  m = load("module") ### "load statement within a conditional"
++
++---
++# option:loadmodule
++# In the assignment form, listed names are attributes of the module
++# value, not bindings in the file scope.
++m = load("module", "x", y="z") # ok
++a = x ### `undefined: x`
++b = y ### `undefined: y`
++
++---
++# option:loadmodule
++m = load("module", "x") # ok
++x = 1 # ok: x is not bound by the load
++
++---
++# option:loadmodule
++m = load("module", "x", "_y") ### "load: names with leading underscores are not exported: _y"
++
++---
++# option:loadmodule
++m = load("module", "x", x="y") ### "load: duplicate name x"
 diff --git a/starlark/eval_test.go b/starlark/eval_test.go
 index 4843168..bc0e4a2 100644
 --- a/starlark/eval_test.go
@@ -251,10 +316,18 @@ index 4843168..bc0e4a2 100644
  		"testdata/misc.star",
  		"testdata/proto.star",
 diff --git a/starlark/interp.go b/starlark/interp.go
-index ff1b0b2..a0d0e26 100644
+index ff1b0b2..ba5f902 100644
 --- a/starlark/interp.go
 +++ b/starlark/interp.go
-@@ -582,19 +582,9 @@ loop:
+@@ -6,6 +6,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"slices"
++	"strings"
+ 
+ 	"go.starlark.net/internal/compile"
+ 	"go.starlark.net/internal/spell"
+@@ -582,19 +583,9 @@ loop:
  			module := string(stack[sp-1].(String))
  			sp--
  
@@ -276,18 +349,51 @@ index ff1b0b2..a0d0e26 100644
  				break loop
  			}
  
-@@ -618,6 +608,22 @@ loop:
+@@ -618,6 +609,55 @@ loop:
  				}
  			}
  
 +		case compile.LOADMODULE:
++			n := int(arg)
 +			module := string(stack[sp-1].(String))
++			sp--
++
 +			dict, err2 := thread.load(module)
 +			if err2 != nil {
 +				err = err2
 +				break loop
 +			}
-+			stack[sp-1] = &LoadedModule{name: module, members: dict}
++
++			var members StringDict
++			if n == 0 {
++				// name = load("module"): all exported names.
++				members = make(StringDict, len(dict))
++				for k, v := range dict {
++					if !strings.HasPrefix(k, "_") {
++						members[k] = v
++					}
++				}
++			} else {
++				// name = load("module", "x", y="z"): only the listed names.
++				members = make(StringDict, n)
++				pairs := stack[sp-2*n : sp]
++				for i := 0; i < n; i++ {
++					to := string(pairs[2*i].(String))
++					from := string(pairs[2*i+1].(String))
++					v, ok := dict[from]
++					if !ok {
++						err = fmt.Errorf("load: name %s not found in module %s", from, module)
++						if n := spell.Nearest(from, dict.Keys()); n != "" {
++							err = fmt.Errorf("%s (did you mean %s?)", err, n)
++						}
++						break loop
++					}
++					members[to] = v
++				}
++				sp -= 2 * n
++			}
++			stack[sp] = &LoadedModule{name: module, members: members}
++			sp++
 +
 +			// Check whether Load callback cancelled the thread.
 +			if thread.checkSteps() {
@@ -299,7 +405,7 @@ index ff1b0b2..a0d0e26 100644
  		case compile.SETLOCAL:
  			locals[arg] = stack[sp-1]
  			sp--
-@@ -762,3 +768,22 @@ func (c *cell) Freeze() {
+@@ -762,3 +802,22 @@ func (c *cell) Freeze() {
  }
  func (c *cell) Truth() Bool           { panic("unreachable") }
  func (c *cell) Hash() (uint32, error) { panic("unreachable") }
@@ -324,28 +430,34 @@ index ff1b0b2..a0d0e26 100644
 +}
 diff --git a/starlark/loadedmodule.go b/starlark/loadedmodule.go
 new file mode 100644
-index 0000000..ddfae7a
+index 0000000..d8942e3
 --- /dev/null
 +++ b/starlark/loadedmodule.go
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,50 @@
 +// Copyright 2026 The Bazel Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
 +// license that can be found in the LICENSE file.
 +
 +package starlark
 +
-+import (
-+	"fmt"
-+	"strings"
-+)
++import "fmt"
 +
 +// A LoadedModule is the value bound by the assignment form of the load
-+// statement, name = load("module"), which requires the
-+// [syntax.FileOptions.LoadModule] option.
++// statement, which requires the [syntax.FileOptions.LoadModule] option.
 +//
-+// Its attributes are the members of the StringDict returned by the
-+// thread's Load function, excluding names beginning with an underscore,
-+// which (as with the ordinary form of load) are not exported.
++// Whereas an ordinary load statement binds the listed names in the
++// file scope,
++//
++//	load("module", "x", y="z")
++//
++// the assignment form binds them as attributes of a single variable:
++//
++//	m = load("module", "x", y="z")   # m.x, m.y
++//
++// If no names are listed, as in m = load("module"), the attributes are
++// all the exported members of the StringDict returned by the thread's
++// Load function, that is, those whose names do not begin with an
++// underscore.
 +type LoadedModule struct {
 +	name    string
 +	members StringDict
@@ -356,38 +468,28 @@ index 0000000..ddfae7a
 +// Name returns the module name passed to load.
 +func (m *LoadedModule) Name() string { return m.name }
 +
-+// Members returns the exported members of the module.
++// Members returns a new StringDict containing the module's attributes.
 +func (m *LoadedModule) Members() StringDict {
 +	r := make(StringDict, len(m.members))
 +	for k, v := range m.members {
-+		if !isPrivate(k) {
-+			r[k] = v
-+		}
++		r[k] = v
 +	}
 +	return r
 +}
 +
-+func (m *LoadedModule) Attr(name string) (Value, error) {
-+	if isPrivate(name) {
-+		return nil, nil // no such attribute
-+	}
-+	return m.members[name], nil
-+}
-+
-+func (m *LoadedModule) AttrNames() []string   { return m.Members().Keys() }
-+func (m *LoadedModule) Freeze()               { m.members.Freeze() }
-+func (m *LoadedModule) Hash() (uint32, error) { return 0, fmt.Errorf("unhashable: %s", m.Type()) }
-+func (m *LoadedModule) String() string        { return fmt.Sprintf("<module %q>", m.name) }
-+func (m *LoadedModule) Truth() Bool           { return true }
-+func (m *LoadedModule) Type() string          { return "module" }
-+
-+func isPrivate(name string) bool { return strings.HasPrefix(name, "_") }
++func (m *LoadedModule) Attr(name string) (Value, error) { return m.members[name], nil }
++func (m *LoadedModule) AttrNames() []string             { return m.members.Keys() }
++func (m *LoadedModule) Freeze()                         { m.members.Freeze() }
++func (m *LoadedModule) Hash() (uint32, error)           { return 0, fmt.Errorf("unhashable: %s", m.Type()) }
++func (m *LoadedModule) String() string                  { return fmt.Sprintf("<module %q>", m.name) }
++func (m *LoadedModule) Truth() Bool                     { return true }
++func (m *LoadedModule) Type() string                    { return "module" }
 diff --git a/starlark/testdata/loadmodule.star b/starlark/testdata/loadmodule.star
 new file mode 100644
-index 0000000..a41a7db
+index 0000000..4e88d3a
 --- /dev/null
 +++ b/starlark/testdata/loadmodule.star
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,86 @@
 +# Tests of the assignment form of load: name = load("module").
 +# option:loadmodule
 +
@@ -453,6 +555,27 @@ index 0000000..a41a7db
 +---
 +# option:loadmodule
 +lib = load("nonesuch.star") ### "cannot load nonesuch.star"
++
++---
++# option:loadmodule
++# The assignment form may list names, binding them as attributes of
++# the module value instead of in the file scope.
++load("assert.star", "assert")
++
++lib = load("loadmodule_lib.star", "double", hi="greeting")
++assert.eq(dir(lib), ["double", "hi"])
++assert.eq(lib.double(4), 8)
++assert.eq(lib.hi, "hello")
++assert.fails(lambda: lib.greeting, "module has no .greeting field or method")
++assert.fails(lambda: lib.reveal, "module has no .reveal field or method")
++
++---
++# option:loadmodule
++lib = load("loadmodule_lib.star", "nonesuch") ### "load: name nonesuch not found in module loadmodule_lib.star"
++
++---
++# option:loadmodule
++lib = load("loadmodule_lib.star", "dubble") ### "did you mean double"
 diff --git a/starlark/testdata/loadmodule_lib.star b/starlark/testdata/loadmodule_lib.star
 new file mode 100644
 index 0000000..19a5538
@@ -487,7 +610,7 @@ index 109aaf6..b0e59a3 100644
  	// compiler
  	Recursion bool // disable recursion check for functions in this file
 diff --git a/syntax/parse.go b/syntax/parse.go
-index e115393..3d6983c 100644
+index e115393..f767bb5 100644
 --- a/syntax/parse.go
 +++ b/syntax/parse.go
 @@ -344,7 +344,7 @@ func (p *parser) parseSmallStmt() Stmt {
@@ -523,21 +646,17 @@ index e115393..3d6983c 100644
  // stmt = LOAD '(' STRING {',' (IDENT '=')? STRING} [','] ')'
 -func (p *parser) parseLoadStmt() *LoadStmt {
 +//
-+//	| IDENT '=' LOAD '(' STRING [','] ')'     (alias != nil; requires LoadModule option)
++//	| IDENT '=' LOAD '(' STRING {',' (IDENT '=')? STRING} [','] ')'   (alias != nil; requires LoadModule option)
 +func (p *parser) parseLoadStmt(alias *Ident) *LoadStmt {
  	loadPos := p.nextToken() // consume LOAD
  	lparen := p.consume(LPAREN)
  
-@@ -412,10 +425,15 @@ func (p *parser) parseLoadStmt() *LoadStmt {
+@@ -412,10 +425,11 @@ func (p *parser) parseLoadStmt() *LoadStmt {
  	}
  	rparen := p.consume(RPAREN)
  
 -	if len(to) == 0 {
-+	if alias != nil {
-+		if len(to) > 0 {
-+			p.in.errorf(to[0].NamePos, "%s = load(...) binds the whole module and may not import individual symbols", alias.Name)
-+		}
-+	} else if len(to) == 0 {
++	if alias == nil && len(to) == 0 {
  		p.in.errorf(lparen, "load statement must import at least 1 symbol")
  	}
  	return &LoadStmt{
@@ -546,10 +665,10 @@ index e115393..3d6983c 100644
  		Module: module,
  		To:     to,
 diff --git a/syntax/parse_test.go b/syntax/parse_test.go
-index 75645a4..4d1c5ef 100644
+index 75645a4..beff06c 100644
 --- a/syntax/parse_test.go
 +++ b/syntax/parse_test.go
-@@ -176,6 +176,10 @@ else:
+@@ -176,6 +176,12 @@ else:
  			`(LoadStmt Module="" From=(a c) To=(a b))`},
  		{`if True: load("", "a", b="c")`, // load needn't be at toplevel
  			`(IfStmt Cond=True True=((LoadStmt Module="" From=(a c) To=(a b))))`},
@@ -557,10 +676,12 @@ index 75645a4..4d1c5ef 100644
 +			`(LoadStmt Alias=m Module="m")`},
 +		{`m = load("m",)`,
 +			`(LoadStmt Alias=m Module="m")`},
++		{`m = load("m", "a", b="c")`,
++			`(LoadStmt Alias=m Module="m" From=(a c) To=(a b))`},
  		{`def f(x, *args, **kwargs):
  	pass`,
  			`(DefStmt Name=f Params=(x (UnaryExpr Op=* X=args) (UnaryExpr Op=** X=kwargs)) Body=((BranchStmt Token=pass)))`},
-@@ -201,7 +205,9 @@ def h():
+@@ -201,7 +207,9 @@ def h():
  		{"f();\n",
  			`(ExprStmt X=(CallExpr Fn=f))`},
  	} {
@@ -571,7 +692,7 @@ index 75645a4..4d1c5ef 100644
  		if err != nil {
  			t.Errorf("parse `%s` failed: %v", test.input, stripPos(err))
  			continue
-@@ -433,7 +439,10 @@ func writeTree(out *bytes.Buffer, x reflect.Value) {
+@@ -433,7 +441,10 @@ func writeTree(out *bytes.Buffer, x reflect.Value) {
  func TestParseErrors(t *testing.T) {
  	filename := starlarktest.DataFile("syntax", "testdata/errors.star")
  	for _, chunk := range chunkedfile.Read(filename, t) {
@@ -584,31 +705,32 @@ index 75645a4..4d1c5ef 100644
  		case nil:
  			// ok
 diff --git a/syntax/syntax.go b/syntax/syntax.go
-index 57983b4..50b7c16 100644
+index 57983b4..668861c 100644
 --- a/syntax/syntax.go
 +++ b/syntax/syntax.go
-@@ -169,6 +169,12 @@ func (x *IfStmt) Span() (start, end Position) {
+@@ -169,6 +169,13 @@ func (x *IfStmt) Span() (start, end Position) {
  // A LoadStmt loads another module and binds names from it:
  // load(Module, "x", y="foo").
  //
-+// In its assignment form, name = load(Module), Alias is non-nil,
-+// From and To are empty, and the statement binds Alias to a value
-+// representing the entire module, whose exported members are
-+// accessible as attributes (name.x). This form requires the
-+// [FileOptions.LoadModule] option.
++// In its assignment form, name = load(Module, "x", y="foo"), Alias is
++// non-nil and the statement binds Alias to a module value whose
++// attributes are the To names, instead of binding the To names in the
++// file scope. If From and To are empty, as in name = load(Module), the
++// attributes are all the exported members of the module. This form
++// requires the [FileOptions.LoadModule] option.
 +//
  // The AST is slightly unfaithful to the concrete syntax here because
  // Starlark's load statement, so that it can be implemented in Python,
  // binds some names (like y above) with an identifier and some (like x)
-@@ -176,6 +182,7 @@ func (x *IfStmt) Span() (start, end Position) {
+@@ -176,6 +183,7 @@ func (x *IfStmt) Span() (start, end Position) {
  // strings.
  type LoadStmt struct {
  	commentsRef
-+	Alias  *Ident // name bound to the whole module (assignment form only), or nil
++	Alias  *Ident // name bound to the module value (assignment form only), or nil
  	Load   Position
  	Module *Literal // a string
  	From   []*Ident // name defined in loading module
-@@ -184,6 +191,9 @@ type LoadStmt struct {
+@@ -184,6 +192,9 @@ type LoadStmt struct {
  }
  
  func (x *LoadStmt) Span() (start, end Position) {
@@ -619,10 +741,10 @@ index 57983b4..50b7c16 100644
  }
  
 diff --git a/syntax/testdata/errors.star b/syntax/testdata/errors.star
-index f480640..c1384a1 100644
+index f480640..fa4a3a9 100644
 --- a/syntax/testdata/errors.star
 +++ b/syntax/testdata/errors.star
-@@ -157,6 +157,38 @@ load("a", "x")
+@@ -157,6 +157,44 @@ load("a", "x")
  load("a", "x", y2="y")
  load("a", x2="x", "y") # => positional-before-named arg check happens later (!)
  ---
@@ -634,7 +756,13 @@ index f480640..c1384a1 100644
 +n = load("b",) # ok
 +---
 +# option:loadmodule
-+m = load("a", "x") ### `m = load\(...\) binds the whole module and may not import individual symbols`
++# The assignment form may list names, like an ordinary load.
++m = load("a", "x") # ok
++n = load("a", "x", y2="y") # ok
++---
++# option:loadmodule
++# Without an assignment, at least one name is still required.
++load("a") ### "load statement must import at least 1 symbol"
 +---
 +# option:loadmodule
 +m = load() ### "first operand of load statement must be a string literal"

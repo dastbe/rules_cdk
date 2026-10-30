@@ -1,4 +1,4 @@
-# spec: `name = load("module.star")` binds a module as a first-class value
+# spec: `name = load("module.star", ...)` binds loaded names to a variable
 
 There is currently no way to refer to a loaded module as a single value.
 To use three functions from `lib.star`, a file must name each one:
@@ -24,25 +24,42 @@ reason: they make it hard to know where a name is defined.
 
 ## Proposal
 
-I propose that a load statement may also appear as the right-hand side of an
-assignment to a single identifier, with no names listed:
+A load statement binds each listed name in the file scope. I propose that a
+load statement may also appear as the right-hand side of an assignment to a
+single identifier, in which case it binds the listed names as attributes of a
+single value, and assigns that value to the identifier:
+
+```python
+load("//lib:lib.star", "parse", lib_check="check")         # binds parse, lib_check
+lib = load("//lib:lib.star", "parse", lib_check="check")   # binds lib; lib.parse, lib.lib_check
+```
+
+In other words, the unbound form binds to the file scope, and the bound form
+binds to a variable. Everything between the parentheses means the same thing
+in both.
+
+The bound form may omit the list of names, in which case the value has an
+attribute for each exported global of the loaded module, that is, each global
+whose name does not begin with `_`:
 
 ```python
 lib = load("//lib:lib.star")
-
 lib.parse(x)
 ```
+
+The unbound form still requires at least one name; omitting the list there
+would be a wildcard load.
 
 The grammar becomes:
 
 ```grammar
-LoadStmt = 'load' '(' string {',' [identifier '='] string} [','] ')'
-         | identifier '=' 'load' '(' string [','] ')' .
+LoadStmt = [identifier '='] 'load' '(' string {',' [identifier '='] string} [','] ')' .
 ```
 
-The statement binds `lib` to a value of type `module` whose attributes are the
-exported globals of the loaded module, that is, those whose names do not
-begin with `_`. In all other respects it behaves like an ordinary load:
+where the list of names may be empty only if the identifier is present.
+
+The value has type `module`. In all other respects the bound form behaves like
+an ordinary load:
 
 - The binding is local to the file, and is not re-exported.
 - The statement may appear only at top level.
@@ -53,8 +70,7 @@ begin with `_`. In all other respects it behaves like an ordinary load:
   mean .parse?)".)
 
 `load` does not become an expression. `f(load("x.star"))`,
-`a, b = load("x.star")`, and `load("x.star").parse` remain syntax errors, as
-does `m = load("x.star", "parse")`, which would mix the two forms.
+`a, b = load("x.star")`, and `load("x.star").parse` remain syntax errors.
 
 ## Why this syntax
 
@@ -65,8 +81,9 @@ does `m = load("x.star", "parse")`, which would mix the two forms.
   from a binding that is visible in the file, so a reader (or a checker) can
   always tell where `f` comes from. This was the objection to
   google/starlark-go#302.
-- It adds no keyword and no second way to load individual symbols. `load`
-  remains the only way to import.
+- It adds no keyword, and no new notation inside the parentheses. A user who
+  knows the existing load statement already knows what
+  `lib = load("lib.star", "parse")` means.
 
 Alternatives considered:
 
@@ -90,9 +107,10 @@ statement is the number of tools that must understand it.
   modules a file loads, such as Bazel's dependency discovery, see the module
   string in the usual place and need only a parser update.
 - Tools that track the names a load binds (buildifier's unused-load warning,
-  IDE jump-to-definition) must learn one new binding form. Buildifier would
-  also need to accept the form, and should keep these statements at the top of
-  the file with other loads.
+  IDE jump-to-definition) must learn that in the bound form, the listed names
+  are attributes of the variable rather than file-scope bindings. Buildifier
+  would also need to accept the form, and should keep these statements at the
+  top of the file with other loads.
 - Implementations can ship the feature behind a flag, as with other dialect
   options, until the tools catch up. No existing file changes meaning.
 
@@ -100,12 +118,11 @@ statement is the number of tools that must understand it.
 
 I have a prototype for starlark-go, gated by a new `syntax.FileOptions.LoadModule`
 option. It consists of parser and resolver support, a new `LOADMODULE` opcode,
-and a `LoadedModule` value type. It is about 300 lines including tests.
+and a `LoadedModule` value type. It is about 400 lines including tests.
 
 ## Open questions
 
-1. Should `m = load("x.star", "a", "b")` bind a module restricted to `a` and
-   `b`? I suggest not for now; it can be added later without breaking anything.
-2. Are two module values for the same file equal? Bazel caches loaded modules,
-   but other applications may not. I suggest module values be unhashable and
-   compare by identity, like other application-defined values.
+1. Are two module values for the same file equal? Bazel caches loaded modules,
+   but other applications may not, and in the bound form two statements may
+   select different names from the same file. I suggest module values be
+   unhashable and compare by identity, like other application-defined values.
