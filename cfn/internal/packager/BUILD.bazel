@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "packager",
+    srcs = ["packager.go"],
+    importpath = "github.com/dastbe/rules_cdk/cfn/internal/packager",
+    visibility = ["//cfn:__subpackages__"],
+    deps = [
+        "//cfn/internal/manifest",
+        "//cfn/internal/validate",
+    ],
+)
+
+go_test(
+    name = "packager_test",
+    srcs = ["packager_test.go"],
+    embed = [":packager"],
+    deps = ["//cfn/internal/manifest"],
+)

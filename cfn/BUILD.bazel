@@ -1,0 +1,13 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+exports_files([
+    "core.bzl",
+    "defs.bzl",
+])
+
+bzl_library(
+    name = "core",
+    srcs = ["core.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["//cfn/private:runtime"],
+)

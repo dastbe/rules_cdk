@@ -1,0 +1,1000 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CRUD API backed by DynamoDB (port of aws-cdk-examples api-cors-lambda-crud-dynamodb)",
+  "Outputs": {
+    "ItemsApiEndpoint": {
+      "Description": "Base URL of the items API",
+      "Value": {
+        "Fn::Sub": [
+          "https://${Api}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod/",
+          {
+            "Api": {
+              "Ref": "CrudRestApi"
+            }
+          }
+        ]
+      }
+    },
+    "ItemsTableName": {
+      "Value": {
+        "Ref": "ItemsTable"
+      }
+    }
+  },
+  "Resources": {
+    "CreateItemFunction": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "rules-cfn-assets-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": "assets/6c73a40afd48e16d4ade6e3bd5333dc4a67a02b2b5466515dd2e1a7a8661d5ef.zip"
+        },
+        "Environment": {
+          "Variables": {
+            "PRIMARY_KEY": "itemId",
+            "TABLE_NAME": {
+              "Ref": "ItemsTable"
+            }
+          }
+        },
+        "Handler": "create.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "CreateItemServiceRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs24.x"
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "CreateItemServiceRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:ConditionCheckItem",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:GetItem",
+                    "dynamodb:GetRecords",
+                    "dynamodb:GetShardIterator",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ItemsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "ItemsTable",
+                              "Arn"
+                            ]
+                          },
+                          "/index/*"
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "Version": "2012-10-17"
+            },
+            "PolicyName": "inline"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "CrudDeployment": {
+      "DependsOn": [
+        "CrudItemsGet",
+        "CrudItemsPost",
+        "CrudItemsOptions",
+        "CrudItemsIdGet",
+        "CrudItemsIdPatch",
+        "CrudItemsIdDelete",
+        "CrudItemsIdOptions"
+      ],
+      "Properties": {
+        "Description": "Automatically created by rules_cfn",
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Deployment"
+    },
+    "CrudItemsGet": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "GET",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Sub": [
+              "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Fn}/invocations",
+              {
+                "Fn": {
+                  "Fn::GetAtt": [
+                    "GetAllItemsFunction",
+                    "Arn"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "ResourceId": {
+          "Ref": "CrudItemsResource"
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Method"
+    },
+    "CrudItemsGetPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "GetAllItemsFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/GET/items",
+            {
+              "Api": {
+                "Ref": "CrudRestApi"
+              }
+            }
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "CrudItemsIdDelete": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "DELETE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Sub": [
+              "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Fn}/invocations",
+              {
+                "Fn": {
+                  "Fn::GetAtt": [
+                    "DeleteItemFunction",
+                    "Arn"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "ResourceId": {
+          "Ref": "CrudItemsIdResource"
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Method"
+    },
+    "CrudItemsIdDeletePermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DeleteItemFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/DELETE/items/{id}",
+            {
+              "Api": {
+                "Ref": "CrudRestApi"
+              }
+            }
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "CrudItemsIdGet": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "GET",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Sub": [
+              "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Fn}/invocations",
+              {
+                "Fn": {
+                  "Fn::GetAtt": [
+                    "GetOneItemFunction",
+                    "Arn"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "ResourceId": {
+          "Ref": "CrudItemsIdResource"
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Method"
+    },
+    "CrudItemsIdGetPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "GetOneItemFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/GET/items/{id}",
+            {
+              "Api": {
+                "Ref": "CrudRestApi"
+              }
+            }
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "CrudItemsIdOptions": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Credentials": "'false'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              },
+              "StatusCode": "200"
+            }
+          ],
+          "PassthroughBehavior": "NEVER",
+          "RequestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          },
+          "Type": "MOCK"
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Credentials": true,
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true
+            },
+            "StatusCode": "200"
+          }
+        ],
+        "ResourceId": {
+          "Ref": "CrudItemsIdResource"
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Method"
+    },
+    "CrudItemsIdPatch": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "PATCH",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Sub": [
+              "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Fn}/invocations",
+              {
+                "Fn": {
+                  "Fn::GetAtt": [
+                    "UpdateItemFunction",
+                    "Arn"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "ResourceId": {
+          "Ref": "CrudItemsIdResource"
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Method"
+    },
+    "CrudItemsIdPatchPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "UpdateItemFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/PATCH/items/{id}",
+            {
+              "Api": {
+                "Ref": "CrudRestApi"
+              }
+            }
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "CrudItemsIdResource": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "CrudItemsResource"
+        },
+        "PathPart": "{id}",
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Resource"
+    },
+    "CrudItemsOptions": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "Integration": {
+          "IntegrationResponses": [
+            {
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Credentials": "'false'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              },
+              "StatusCode": "200"
+            }
+          ],
+          "PassthroughBehavior": "NEVER",
+          "RequestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          },
+          "Type": "MOCK"
+        },
+        "MethodResponses": [
+          {
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Credentials": true,
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true,
+              "method.response.header.Access-Control-Allow-Origin": true
+            },
+            "StatusCode": "200"
+          }
+        ],
+        "ResourceId": {
+          "Ref": "CrudItemsResource"
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Method"
+    },
+    "CrudItemsPost": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "POST",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Sub": [
+              "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Fn}/invocations",
+              {
+                "Fn": {
+                  "Fn::GetAtt": [
+                    "CreateItemFunction",
+                    "Arn"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "ResourceId": {
+          "Ref": "CrudItemsResource"
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Method"
+    },
+    "CrudItemsPostPermission": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "CreateItemFunction",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": [
+            "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/POST/items",
+            {
+              "Api": {
+                "Ref": "CrudRestApi"
+              }
+            }
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "CrudItemsResource": {
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "CrudRestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "items",
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        }
+      },
+      "Type": "AWS::ApiGateway::Resource"
+    },
+    "CrudRestApi": {
+      "Properties": {
+        "Name": "Items Service"
+      },
+      "Type": "AWS::ApiGateway::RestApi"
+    },
+    "CrudStage": {
+      "Properties": {
+        "DeploymentId": {
+          "Fn::GetAtt": [
+            "CrudDeployment",
+            "DeploymentId"
+          ]
+        },
+        "RestApiId": {
+          "Ref": "CrudRestApi"
+        },
+        "StageName": "prod"
+      },
+      "Type": "AWS::ApiGateway::Stage"
+    },
+    "DeleteItemFunction": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "rules-cfn-assets-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": "assets/aece9c4a45078648331e2da1cbeea37ff58a14112a5e2f21a60bd623d0123a99.zip"
+        },
+        "Environment": {
+          "Variables": {
+            "PRIMARY_KEY": "itemId",
+            "TABLE_NAME": {
+              "Ref": "ItemsTable"
+            }
+          }
+        },
+        "Handler": "delete-one.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "DeleteItemServiceRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs24.x"
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "DeleteItemServiceRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:ConditionCheckItem",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:GetItem",
+                    "dynamodb:GetRecords",
+                    "dynamodb:GetShardIterator",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ItemsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "ItemsTable",
+                              "Arn"
+                            ]
+                          },
+                          "/index/*"
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "Version": "2012-10-17"
+            },
+            "PolicyName": "inline"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "GetAllItemsFunction": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "rules-cfn-assets-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": "assets/b02319c7dcfc0003d4a4069709f8a683e8ad4c2838d543f7433bfb3371ebe075.zip"
+        },
+        "Environment": {
+          "Variables": {
+            "PRIMARY_KEY": "itemId",
+            "TABLE_NAME": {
+              "Ref": "ItemsTable"
+            }
+          }
+        },
+        "Handler": "get-all.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "GetAllItemsServiceRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs24.x"
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "GetAllItemsServiceRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:ConditionCheckItem",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:GetItem",
+                    "dynamodb:GetRecords",
+                    "dynamodb:GetShardIterator",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ItemsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "ItemsTable",
+                              "Arn"
+                            ]
+                          },
+                          "/index/*"
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "Version": "2012-10-17"
+            },
+            "PolicyName": "inline"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "GetOneItemFunction": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "rules-cfn-assets-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": "assets/b5b6e761a9c150261c9a72d090e6b55c8baabda95079654ef7f01732693a0a71.zip"
+        },
+        "Environment": {
+          "Variables": {
+            "PRIMARY_KEY": "itemId",
+            "TABLE_NAME": {
+              "Ref": "ItemsTable"
+            }
+          }
+        },
+        "Handler": "get-one.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "GetOneItemServiceRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs24.x"
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "GetOneItemServiceRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:ConditionCheckItem",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:GetItem",
+                    "dynamodb:GetRecords",
+                    "dynamodb:GetShardIterator",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ItemsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "ItemsTable",
+                              "Arn"
+                            ]
+                          },
+                          "/index/*"
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "Version": "2012-10-17"
+            },
+            "PolicyName": "inline"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "ItemsTable": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "itemId",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "itemId",
+            "KeyType": "HASH"
+          }
+        ],
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        },
+        "TableName": "items"
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Delete"
+    },
+    "UpdateItemFunction": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "rules-cfn-assets-${AWS::AccountId}-${AWS::Region}"
+          },
+          "S3Key": "assets/683525223f772e228d9d523d7553f7d61a2abab81c581ef45fae5300074823b2.zip"
+        },
+        "Environment": {
+          "Variables": {
+            "PRIMARY_KEY": "itemId",
+            "TABLE_NAME": {
+              "Ref": "ItemsTable"
+            }
+          }
+        },
+        "Handler": "update-one.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "UpdateItemServiceRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs24.x"
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "UpdateItemServiceRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:ConditionCheckItem",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:GetItem",
+                    "dynamodb:GetRecords",
+                    "dynamodb:GetShardIterator",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:BatchWriteItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ItemsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          {
+                            "Fn::GetAtt": [
+                              "ItemsTable",
+                              "Arn"
+                            ]
+                          },
+                          "/index/*"
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "Version": "2012-10-17"
+            },
+            "PolicyName": "inline"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    }
+  }
+}

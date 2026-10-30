@@ -1,0 +1,30 @@
+"""rules_cfn: author CloudFormation in typed Starlark generated from CloudFormation specs."""
+
+module(
+    name = "rules_cfn",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_go", version = "0.57.0")
+bazel_dep(name = "gazelle", version = "0.45.0")
+
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//:go.mod")
+
+# Development-only specs used by this repo's own tests and examples.
+cfn = use_extension("//cfn:extensions.bzl", "cfn", dev_dependency = True)
+
+# A vendored, pinned subset (see third_party/cfn_schemas/README.md).
+cfn.spec(
+    name = "cfn",
+    schema_dirs = ["//third_party/cfn_schemas:README.md"],
+)
+
+# AWS's unpinned "latest" archive, for the full-spec codegen smoke test
+# (//cfn/tests:full_spec_test, tagged manual). Its contents change without notice.
+cfn.spec(
+    name = "cfn_latest",
+    urls = ["https://schema.cloudformation.us-east-1.amazonaws.com/CloudformationSchema.zip"],
+)
+use_repo(cfn, "cfn", "cfn_latest")

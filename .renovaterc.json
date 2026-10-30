@@ -1,10 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base"],
-  "includePaths": [
-    "internal_deps.bzl",
-    "cdk/dependencies.bzl",
-    "cdk/private/latest/**",
-    "e2e/workspace/**"
-  ]
+  "extends": ["config:recommended"],
+  "includePaths": ["MODULE.bazel", "go.mod"]
 }

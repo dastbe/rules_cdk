@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "cfnctl_lib",
+    srcs = [
+        "main.go",
+        "remote.go",
+    ],
+    importpath = "github.com/dastbe/rules_cdk/cfn/cmd/cfnctl",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//cfn/internal/manifest",
+        "//cfn/internal/packager",
+        "//cfn/internal/validate",
+    ],
+)
+
+go_binary(
+    name = "cfnctl",
+    embed = [":cfnctl_lib"],
+    visibility = ["//visibility:public"],
+)

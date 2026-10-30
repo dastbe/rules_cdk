@@ -1,0 +1,23 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@rules_cfn//cfn:defs.bzl", "cfn_stack")
+load(":stack.bzl", "crud_api_template")
+
+# bazel build //examples/crud_api:stack  -> stack.template.json, stack.manifest.json, stack.assets/
+# bazel run   //examples/crud_api:stack.{diff,plan,deploy,destroy}
+cfn_stack(
+    name = "stack",
+    stack_name = "ApiLambdaCrudDynamoDBExample",
+    template = crud_api_template(),
+)
+
+# The materialized output is checked in so changes to bindings, codegen or
+# packaging show up in review. Regenerate with:
+#   bazel build //examples/crud_api:stack && cp bazel-bin/examples/crud_api/stack.{template,manifest}.json examples/crud_api/golden/
+[diff_test(
+    name = "golden_{}_test".format(kind),
+    file1 = "golden/stack.{}.json".format(kind),
+    file2 = ":stack.{}.json".format(kind),
+) for kind in [
+    "template",
+    "manifest",
+]]

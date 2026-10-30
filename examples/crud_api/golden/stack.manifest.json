@@ -1,0 +1,47 @@
+{
+  "stack_name": "ApiLambdaCrudDynamoDBExample",
+  "capabilities": [
+    "CAPABILITY_IAM"
+  ],
+  "asset_bucket": "rules-cfn-assets-${AWS::AccountId}-${AWS::Region}",
+  "template": "stack.template.json",
+  "template_sha256": "e722fa0e6c6423482d2ccf9ad211be6140d098aad4ad7b5d7329d83d70fdbeca",
+  "template_size": 27833,
+  "assets": [
+    {
+      "label": "//examples/crud_api/lambdas:create",
+      "packaging": "zip",
+      "sha256": "6c73a40afd48e16d4ade6e3bd5333dc4a67a02b2b5466515dd2e1a7a8661d5ef",
+      "key": "assets/6c73a40afd48e16d4ade6e3bd5333dc4a67a02b2b5466515dd2e1a7a8661d5ef.zip",
+      "file": "stack.assets/6c73a40afd48e16d4ade6e3bd5333dc4a67a02b2b5466515dd2e1a7a8661d5ef.zip"
+    },
+    {
+      "label": "//examples/crud_api/lambdas:delete-one",
+      "packaging": "zip",
+      "sha256": "aece9c4a45078648331e2da1cbeea37ff58a14112a5e2f21a60bd623d0123a99",
+      "key": "assets/aece9c4a45078648331e2da1cbeea37ff58a14112a5e2f21a60bd623d0123a99.zip",
+      "file": "stack.assets/aece9c4a45078648331e2da1cbeea37ff58a14112a5e2f21a60bd623d0123a99.zip"
+    },
+    {
+      "label": "//examples/crud_api/lambdas:get-all",
+      "packaging": "zip",
+      "sha256": "b02319c7dcfc0003d4a4069709f8a683e8ad4c2838d543f7433bfb3371ebe075",
+      "key": "assets/b02319c7dcfc0003d4a4069709f8a683e8ad4c2838d543f7433bfb3371ebe075.zip",
+      "file": "stack.assets/b02319c7dcfc0003d4a4069709f8a683e8ad4c2838d543f7433bfb3371ebe075.zip"
+    },
+    {
+      "label": "//examples/crud_api/lambdas:get-one",
+      "packaging": "zip",
+      "sha256": "b5b6e761a9c150261c9a72d090e6b55c8baabda95079654ef7f01732693a0a71",
+      "key": "assets/b5b6e761a9c150261c9a72d090e6b55c8baabda95079654ef7f01732693a0a71.zip",
+      "file": "stack.assets/b5b6e761a9c150261c9a72d090e6b55c8baabda95079654ef7f01732693a0a71.zip"
+    },
+    {
+      "label": "//examples/crud_api/lambdas:update-one",
+      "packaging": "zip",
+      "sha256": "683525223f772e228d9d523d7553f7d61a2abab81c581ef45fae5300074823b2",
+      "key": "assets/683525223f772e228d9d523d7553f7d61a2abab81c581ef45fae5300074823b2.zip",
+      "file": "stack.assets/683525223f772e228d9d523d7553f7d61a2abab81c581ef45fae5300074823b2.zip"
+    }
+  ]
+}

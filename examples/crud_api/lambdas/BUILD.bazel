@@ -1,0 +1,12 @@
+# Each handler is its own asset so a change to one only re-uploads that function's code.
+[filegroup(
+    name = name,
+    srcs = [name + ".mjs"],
+    visibility = ["//examples/crud_api:__subpackages__"],
+) for name in [
+    "create",
+    "delete-one",
+    "get-all",
+    "get-one",
+    "update-one",
+]]
