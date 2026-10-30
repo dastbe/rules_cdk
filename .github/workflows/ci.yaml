@@ -1,191 +1,45 @@
 name: CI
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on pull request events but only for the main branch
   pull_request:
     branches: [main]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 concurrency:
-  # Cancel previous actions from the same PR: https://stackoverflow.com/a/72408109
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # matrix-prep-* steps generate JSON used to create a dynamic actions matrix.
-  # Insanely complex for how simple this requirement is inspired from
-  # https://stackoverflow.com/questions/65384420/how-to-make-a-github-action-matrix-element-conditional
-
-  matrix-prep-bazelversion:
-    # Prepares the 'bazelversion' axis of the test matrix
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - id: bazel_from_bazelversion
-        run: echo "bazelversion=$(head -n 1 .bazelversion)" >> $GITHUB_OUTPUT
-      - id: bazel_5
-        run: echo "bazelversion=5.4.0" >> $GITHUB_OUTPUT
-      - id: bazel_7
-        run: echo "bazelversion=7.0.0-pre.20221212.2" >> $GITHUB_OUTPUT
-    outputs:
-      # Will look like ["<version from .bazelversion>", "5.3.2"]
-      bazelversions: ${{ toJSON(steps.*.outputs.bazelversion) }}
-
   test:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    needs:
-      - matrix-prep-bazelversion
-
-    # Run bazel test in each workspace with each version of Bazel supported
-    strategy:
-      fail-fast: false
-      matrix:
-        bazelversion: ${{ fromJSON(needs.matrix-prep-bazelversion.outputs.bazelversions) }}
-        folder:
-          - "."
-          - "e2e/workspace"
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
-
-      - name: Configure Bazel version
-        working-directory: ${{ matrix.folder }}
-        run: echo "${{ matrix.bazelversion }}" > .bazelversion
-
-      # Cache build and external artifacts so that the next ci build is incremental.
-      # Because github action caches cannot be updated after a build, we need to
-      # store the contents of each build in a unique cache key, then fall back to loading
-      # it on the next ci run. We use hashFiles(...) in the key and restore-keys- with
-      # the prefix to load the most recent cache for the branch on a cache miss. You
-      # should customize the contents of hashFiles to capture any bazel input sources,
-      # although this doesn't need to be perfect. If none of the input sources change
-      # then a cache hit will load an existing cache and bazel won't have to do any work.
-      # In the case of a cache miss, you want the fallback cache to contain most of the
-      # previously built artifacts to minimize build time. The more precise you are with
-      # hashFiles sources the less work bazel will have to do.
+      - uses: actions/checkout@v4
       - name: Mount bazel caches
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/bazel
             ~/.cache/bazel-repo
-          key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE', '.bazelversion') }}
+          key: bazel-cache-${{ hashFiles('MODULE.bazel', 'go.sum', '**/BUILD.bazel', '**/*.bzl', '.bazelversion') }}
           restore-keys: bazel-cache-
-
-      - name: Check for test.sh
-        # Checks for the existence of test.sh in the folder. Downstream steps can use
-        # steps.has_test_sh.outputs.files_exists as a conditional.
-        id: has_test_sh
-        uses: andstor/file-existence-action@v2
-        with:
-          files: "${{ matrix.folder }}/test.sh"
-
       - name: bazel test //...
         env:
-          # Bazelisk will download bazel to here, ensure it is cached between runs.
           XDG_CACHE_HOME: ~/.cache/bazel-repo
-        working-directory: ${{ matrix.folder }}
-        run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc test //...
-
-      - name: ./test.sh
-        # Run if there is a test.sh file in the folder
-        if: steps.has_test_sh.outputs.files_exists == 'true'
-        working-directory: ${{ matrix.folder }}
-        shell: bash
-        run: ./test.sh
-
-  deploy-examples:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - "//examples/javascript"
-          - "//examples/golang"
-          - "//examples/static"
-
-    # only have one of these jobs running at any given time
-    concurrency: deploy-examples-${{ matrix.target }}
-
-    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
-    permissions:
-      id-token: write
-      contents: read
-
-    needs:
-      - test
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
-
-      # Cache build and external artifacts so that the next ci build is incremental.
-      # Because github action caches cannot be updated after a build, we need to
-      # store the contents of each build in a unique cache key, then fall back to loading
-      # it on the next ci run. We use hashFiles(...) in the key and restore-keys- with
-      # the prefix to load the most recent cache for the branch on a cache miss. You
-      # should customize the contents of hashFiles to capture any bazel input sources,
-      # although this doesn't need to be perfect. If none of the input sources change
-      # then a cache hit will load an existing cache and bazel won't have to do any work.
-      # In the case of a cache miss, you want the fallback cache to contain most of the
-      # previously built artifacts to minimize build time. The more precise you are with
-      # hashFiles sources the less work bazel will have to do.
-      - name: Mount bazel caches
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/bazel
-            ~/.cache/bazel-repo
-          key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE', '.bazelversion') }}
-          restore-keys: bazel-cache-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: arn:aws:iam::270025496640:role/rules-cdk-deploy-test
-          aws-region: us-east-1
-      - name: bazel build //...
+        run: bazel --bazelrc=.github/workflows/ci.bazelrc --bazelrc=.bazelrc test //...
+      - name: load-time error messages
         env:
-          # Bazelisk will download bazel to here, ensure it is cached between runs.
           XDG_CACHE_HOME: ~/.cache/bazel-repo
-        working-directory: "e2e/workspace"
-        run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc build //...
-      - name: bazel run :diff
+        run: cfn/tests/load_errors.sh "bazel --bazelrc=.github/workflows/ci.bazelrc --bazelrc=.bazelrc"
+      - name: full-spec codegen smoke test (AWS latest schemas)
+        # The upstream archive is unpinned, so a failure here is a signal about
+        # codegen robustness rather than about the change under review.
+        continue-on-error: true
         env:
-          # Bazelisk will download bazel to here, ensure it is cached between runs.
           XDG_CACHE_HOME: ~/.cache/bazel-repo
-        working-directory: "e2e/workspace"
-        run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc run ${{ matrix.target }}:diff
-      - name: bazel run :deploy
-        env:
-          # Bazelisk will download bazel to here, ensure it is cached between runs.
-          XDG_CACHE_HOME: ~/.cache/bazel-repo
-        working-directory: "e2e/workspace"
-        run: bazel --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc --bazelrc=.bazelrc run ${{ matrix.target }}:deploy
+        run: bazel --bazelrc=.github/workflows/ci.bazelrc --bazelrc=.bazelrc build @cfn_latest//_smoke
 
-      - name: ./test.sh
-        # Run if there is a test.sh file in the folder
-        if: steps.has_test_sh.outputs.files_exists == 'true'
-        working-directory: "e2e/workspace"
-        shell: bash
-        run: ./test.sh
-
-  # This depends on all terminal CI jobs, as acts as a hook for other systems
-  # that can't hook into the matrix build jobs for testing.
   ci-success:
-    needs:
-      - test
-      - deploy-examples
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - name: CI succeeded
-        run: exit 0
+      - run: exit 0

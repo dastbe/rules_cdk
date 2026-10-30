@@ -23,7 +23,7 @@ check() {
   local name=$1 body=$2 want=$3
   mkdir -p "$PKG"
   printf '%s\n%s\n' "$HEADER" "$body" > "$PKG/BUILD.bazel"
-  out=$("$BAZEL" build "//$PKG:all" 2>&1)
+  out=$($BAZEL build "//$PKG:all" 2>&1)
   if grep -qF -- "$want" <<<"$out"; then
     echo "PASS $name"
   else

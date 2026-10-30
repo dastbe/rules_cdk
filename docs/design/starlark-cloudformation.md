@@ -1,6 +1,6 @@
 # Design: rules_cfn: typed Starlark bindings generated from CloudFormation specs
 
-Status: **Accepted plan (rev 3), ready for phase 0**
+Status: **Phases 0–5 implemented (rev 4); see §12 for what was built and where it deviates**
 
 Review decisions:
 
@@ -429,3 +429,64 @@ None blocking. The phase 0 spike decides two things:
   whether it moves to `cfnctl gen`. The output is Starlark either way.
 - The final ergonomics of the hand-written S3/IAM bindings. Any API changes
   are folded back into §4.3 before phase 2.
+
+## 12. Implementation status (rev 4)
+
+| Phase | Status |
+|------:|--------|
+| 0 | Done. CDK removed; bzlmod only (`module(name = "rules_cfn")`, Bazel 8.4). Spike result: pure-Starlark codegen is fast enough. AWS's full us-east-1 spec (1,874 types → 306 AWS service files, about 12,900 constructors, 20 MB of `.bzl`) downloads, generates and loads in about 11 s cold. No Go fallback needed. |
+| 1 | Done. `//cfn:core.bzl` and `//cfn/private:runtime.bzl`. |
+| 2 | Done for the `registry` format: `cfn.spec`, `cfn.overlay`, local `schema_dirs`, `include`/`exclude`. |
+| 3 | Done. `cfn_stack` + `cfnctl package`, with strict validation in Go. |
+| 4 | Done against a fake CloudFormation (`//cfn/internal/deploy:deploy_test`): `diff`, `plan`, `deploy`, `destroy`. Not yet run against a real account. |
+| 5 | Done for zip/file assets and the bootstrap bucket. |
+| 6 | Partial. Overlays work. Not done: the `resource_spec` adapter, mirrored snapshots and the snapshot tool. |
+| 7 | Partial. README only; no Stardoc yet. |
+
+### Deviations from the plan
+
+- **Default spec.** AWS's "latest" archive changed bytes within an hour of
+  first being pinned, so the repo vendors a small pinned subset
+  (`third_party/cfn_schemas`) as the default `@cfn`. The unpinned full archive
+  is a dev-only `@cfn_latest`, used by `bazel build @cfn_latest//_smoke`, a
+  generated package that loads every service file.
+- **Bootstrap** is an ordinary Starlark `cfn_stack`
+  (`bazel run @rules_cfn//cfn/bootstrap:bootstrap.deploy`), not a
+  `cfnctl bootstrap` subcommand. It dogfoods the bindings with no special
+  case in Go.
+- **Exit codes.** `diff`/`plan` exit 2 on pending changes only with
+  `--detailed-exitcode`. Otherwise every `bazel run` with changes would look
+  like a failure.
+- **Naming collisions** are resolved deterministically rather than failing:
+  - Properties that collide with Starlark keywords, resource kwargs or
+    `logical_id` get a trailing underscore (`condition_`, `metadata_`,
+    `from_`; about 80 cases in the full spec).
+  - Duplicate flattened type names get a numeric suffix and are listed in
+    `@cfn//:naming_report.txt`. There are none in the current full spec.
+  - Failing outright would break every consumer whenever AWS adds such a
+    property.
+- **Unions.** In a `oneOf`, a bare untyped branch (often a compatibility
+  `{"type": "object"}`) is dropped when typed branches exist, so
+  `dynamodb.table(key_schema = ...)` stays typed. Intrinsics are still
+  accepted everywhere.
+- **Property-type paths** are flat (`s3_types.bucket_versioning_configuration`),
+  per review. Enums are `s3_enums.bucket_versioning_configuration_status.ENABLED`.
+- **`cfn.template_json()`** is the serializer's name, because Bazel structs
+  can't have a `to_json` field. For the same reason, generated names
+  `to_json`/`to_proto` are escaped.
+- **Asset keys** are `assets/<sha256>.zip`. Large templates go to
+  `templates/<sha256>.json` in the same bucket.
+
+### Not done yet
+
+- `cfn_app`: multi-stack ordering. `deps` is recorded in the manifest, but
+  nothing orchestrates it.
+- Directory, container-image and nested-stack assets.
+- The legacy `resource_spec` format and mirrored snapshots.
+- Running against a real account (there was no AWS access in the
+  environment this was built in).
+- A side-by-side diff with `cdk synth` of the original example. The port
+  matches CDK's resource set except that each function's DynamoDB grant is an
+  inline role policy, not a separate `AWS::IAM::Policy`; there is one Lambda
+  permission per route rather than CDK's two; and the API Gateway CloudWatch
+  role is omitted (it's off by default in current CDK).

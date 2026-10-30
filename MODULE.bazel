@@ -11,20 +11,24 @@ bazel_dep(name = "gazelle", version = "0.45.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
+use_repo(go_deps, "com_github_aws_aws_sdk_go_v2", "com_github_aws_aws_sdk_go_v2_config", "com_github_aws_aws_sdk_go_v2_service_cloudformation", "com_github_aws_aws_sdk_go_v2_service_s3", "com_github_aws_aws_sdk_go_v2_service_sts", "com_github_aws_smithy_go")
 
-# Development-only specs used by this repo's own tests and examples.
-cfn = use_extension("//cfn:extensions.bzl", "cfn", dev_dependency = True)
+cfn = use_extension("//cfn:extensions.bzl", "cfn")
 
-# A vendored, pinned subset (see third_party/cfn_schemas/README.md).
+# Default spec: a pinned, vendored subset of the us-east-1 registry schemas (IAM,
+# Lambda, API Gateway, DynamoDB, S3, Logs; see third_party/cfn_schemas). A root
+# module that declares its own cfn.spec(name = "cfn") replaces it.
 cfn.spec(
     name = "cfn",
     schema_dirs = ["//third_party/cfn_schemas:README.md"],
 )
+use_repo(cfn, "cfn")
 
-# AWS's unpinned "latest" archive, for the full-spec codegen smoke test
-# (//cfn/tests:full_spec_test, tagged manual). Its contents change without notice.
-cfn.spec(
+# Development-only: AWS's unpinned "latest" archive, for the full-spec codegen
+# smoke test (`bazel build @cfn_latest//_smoke`). Its contents change without notice.
+cfn_dev = use_extension("//cfn:extensions.bzl", "cfn", dev_dependency = True)
+cfn_dev.spec(
     name = "cfn_latest",
     urls = ["https://schema.cloudformation.us-east-1.amazonaws.com/CloudformationSchema.zip"],
 )
-use_repo(cfn, "cfn", "cfn_latest")
+use_repo(cfn_dev, "cfn_latest")
