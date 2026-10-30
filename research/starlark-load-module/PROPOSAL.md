@@ -122,7 +122,53 @@ and a `LoadedModule` value type. It is about 400 lines including tests.
 
 ## Open questions
 
-1. Are two module values for the same file equal? Bazel caches loaded modules,
-   but other applications may not, and in the bound form two statements may
-   select different names from the same file. I suggest module values be
-   unhashable and compare by identity, like other application-defined values.
+1. When are two module values equal?
+
+   Each bound load statement produces a new value, but several may refer to
+   the same file:
+
+   ```python
+   a = load("lib.star")
+   b = load("lib.star")
+   c = load("lib.star", "parse")
+   d = load("//pkg:lib.star")    # perhaps the same file, perhaps not
+
+   a == b   # ?
+   a == c   # ?
+   a == d   # ?
+   ```
+
+   (In practice `a` and `b` would rarely appear in the same file, but the same
+   comparison arises when two files each load `lib.star` and pass the result
+   to a common function.)
+
+   There are three plausible answers:
+
+   - **Identity.** Each statement yields a distinct value, so `a == a` but
+     `a != b`. This is simple, needs no cooperation from the application,
+     and matches how existing application-defined module values (such as
+     starlark-go's `starlarkstruct.Module`) already behave.
+   - **Structure.** Two module values are equal if they have the same
+     attribute names bound to equal values, as with structs. Module values
+     are frozen, so the result is stable. But it depends on the application's
+     caching: Bazel loads each file once per build, so in Bazel `a == b`
+     would be true, whereas in an application that executes the file afresh
+     for each load, the functions would be distinct and `a == b` would be
+     false. The same program would behave differently in different
+     applications.
+   - **Module name.** Two values are equal if they came from the same module
+     name and have the same attributes. This is wrong, because the
+     interpretation of the module name belongs to the application:
+     `"lib.star"` and `"//pkg:lib.star"` may name the same file, and the
+     same string may name different files when loaded from different
+     directories.
+
+   A related question is hashing. If module values are hashable they may be
+   dict keys and set elements, but it is hard to think of a program that
+   needs this that could not use the module name instead.
+
+   I suggest module values compare by identity and be unhashable, as in the
+   prototype. This is the only option whose result does not depend on the
+   application, and it is unlikely that any program will come to depend on two
+   loads of the same file comparing unequal, so it could be relaxed to
+   structural equality later if a need arises.
