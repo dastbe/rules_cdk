@@ -1,6 +1,6 @@
 # Design: rules_cfn: typed Starlark bindings generated from CloudFormation specs
 
-Status: **Phases 0–5 implemented (rev 4); see §12 for what was built and where it deviates**
+Status: **Phases 0–5 implemented on Bazel Starlark (rev 4, §12). Rev 5 (§13) proposes moving evaluation to starlark-rust.**
 
 Review decisions:
 
@@ -490,3 +490,108 @@ None blocking. The phase 0 spike decides two things:
   inline role policy, not a separate `AWS::IAM::Policy`; there is one Lambda
   permission per route rather than CDK's two; and the API Gateway CloudWatch
   role is omitted (it's off by default in current CDK).
+
+## 13. Rev 5 proposal: evaluate with starlark-rust
+
+Review input: bindings must stay **Starlark source**, for LSP and discovery.
+The interpreter can be starlark-go or starlark-rust, whichever has the more
+compelling batteries.
+
+### What each interpreter offers
+
+Checked against the source of starlark-go `v0.0.0-20261021` and starlark-rust
+`0.14.2` (`starlark`, `starlark_lsp`, `starlark_syntax`):
+
+| | Bazel (today) | starlark-go | starlark-rust |
+|---|---|---|---|
+| Typed structs | none (`struct` + `_cfn` tag) | none built in; `struct.Type()` is always `"struct"`; custom Go values only | **`record(name = str, port = field(int, 80))`** with construction-time type checks; **`enum(...)`** |
+| Type annotations | no | no | **yes** (`def f(x: str \| None) -> list[str]`), checked at run time |
+| Static typechecker | no | no | **yes** (`typing` module; diagnostics before evaluation) |
+| LSP | third-party | none | **`starlark_lsp` crate**: completion, hover from docstrings, go-to-definition. We host it via `LspContext`, so we resolve `load()` ourselves (`@cfn//aws:s3.star` → generated file) |
+| Doc extraction | Stardoc | no | **`starlark::docs`** (markdown rendering) |
+| Recursion / `while` | neither | both, opt-in per file | recursion yes, `while` no |
+| Regex | no | Go builtin (ours) | Rust builtin (ours) |
+| Host language | — | Go, same as `cfnctl` | Rust |
+| API stability | stable | stable | 0.x; breaking releases are routine |
+
+### Recommendation: starlark-rust
+
+The deciding factors are records, annotations, the typechecker and the LSP
+crate. Together they make the generated bindings typed *as Starlark source*,
+in the editor and before anything runs. That is exactly what "bindings in
+Starlark for LSP and discovery" asks for. With starlark-go we would rebuild
+all of it ourselves, and still have no LSP.
+
+### What changes
+
+- **Generated bindings use annotations and records.** Sketch:
+
+  ```python
+  # @cfn//aws:s3.star (generated)
+  BucketVersioningConfiguration = record(
+      status = str | Intrinsic,
+  )
+
+  def bucket_versioning_configuration(*, status: str | Intrinsic) -> BucketVersioningConfiguration:
+      """AWS::S3::Bucket.VersioningConfiguration ..."""
+      return _cfn.value("AWS::S3::Bucket.VersioningConfiguration", BucketVersioningConfiguration(status = status))
+
+  def bucket(logical_id: str, *, versioning_configuration: BucketVersioningConfiguration | Intrinsic | None = None, ...) -> Resource:
+      ...
+  ```
+
+  - The typechecker catches wrong types statically.
+  - Records enforce them again at run time.
+  - The host builtin `_cfn` keeps what types can't express: enum
+    membership, `pattern` (Rust `regex`), lengths and ranges. So all
+    validation happens in one layer, at evaluation.
+  - Serialization maps snake fields back to CFN names using the schema IR
+    the host already holds.
+- **Exports become top-level symbols** (`load("@cfn//aws:s3.star", "bucket",
+  "bucket_versioning_configuration")`). The LSP completes loaded and global
+  symbols and keyword parameters, but not members of a `struct(...)`. That
+  makes today's `s3 = struct(...)` grouping invisible to discovery. Names
+  stay flat and snake_case, as already decided.
+- **Evaluation moves into an action.**
+  - `cfn_library(srcs, deps)` collects `.star` files.
+  - `cfn_stack(src = "stack.star", deps = [...], spec = "@cfn//:spec")` runs
+    `cfnstar eval`. Errors surface at `bazel build`, not at load.
+  - BUILD loading no longer evaluates MBs of bindings.
+  - Assets are passed into the action as a label-to-path map.
+  - `bazel query` no longer sees resources (acceptable).
+- **Bazel becomes optional.** The same binary runs `cfnstar eval stack.star`
+  directly, and `cfnstar lsp` serves editors.
+- **Seam with the existing Go code.** `cfnstar eval` emits exactly the raw
+  template JSON (with `__cfn_asset__` placeholders) that `cfnctl package`
+  consumes today. Packaging, strict validation, diff, plan and deploy keep
+  working unchanged. Porting `cfnctl` to Rust (aws-sdk-rust) to ship one
+  binary is a later, separate decision.
+- **The codegen repository rule** shrinks to fetching the schemas. Generation
+  moves into the Rust host (`cfnstar gen`), which emits `.star` files once
+  per spec. The repository rule runs it, or it runs as an action that
+  produces a tree artifact.
+
+### Migration and spike
+
+1. `cfnstar` crate: evaluator with types enabled and the `record`/`enum`/
+   `typing` extensions, `load()` resolution for `@repo//pkg:file.star`, and
+   the `_cfn` builtin.
+2. Port the codegen to Rust, reusing the IR and naming rules (port
+   `naming.bzl` with its test cases).
+3. Port `core.bzl` and the example libraries to `.star` (mostly mechanical:
+   add annotations, flatten exports).
+4. Exit criteria:
+   - `examples/crud_api` produces a raw template that `cfnctl package` turns
+     into byte-identical `golden/` output.
+   - `cfnstar lsp` gives completion and hover for `bucket(` in VS Code.
+   - The typechecker flags a wrong-typed property before evaluation.
+5. Then delete the Bazel-Starlark runtime and codegen.
+
+### Risks
+
+- starlark-rust's 0.x churn. Pin the version and keep our use of the API
+  narrow.
+- Its dialect (annotations) isn't Bazel `.bzl`, so libraries can't be shared
+  with BUILD files. That's fine once evaluation lives in actions.
+- A second toolchain (rules_rust) until or unless `cfnctl` is ported.
+- The LSP's member completion is limited, which forces flat exports.
