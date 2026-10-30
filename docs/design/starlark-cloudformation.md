@@ -1,8 +1,8 @@
 # Design: rules_cfn: typed Starlark bindings generated from CloudFormation specs
 
-Status: **Draft for review (rev 2)**
+Status: **Accepted plan (rev 3), ready for phase 0**
 
-Rev 2 incorporates review decisions:
+Review decisions:
 
 | # | Question | Decision |
 |---|----------|----------|
@@ -12,6 +12,12 @@ Rev 2 incorporates review decisions:
 | 4 | Deploy path | **Raw CloudFormation, no CDK.** A Go app (`cfnctl`) packages, dry-runs, diffs and executes |
 | 5 | Packaging | Build it in this repo and **remove CDK entirely** ("salt the earth"); migrate repos later |
 | 6 | Bzlmod | **Yes**, bzlmod only |
+| 7 | Strict validation | Types, required props and enums are checked at **load time**; patterns and ranges are checked in **`cfnctl package`** (build time) |
+| 8 | Who evaluates Starlark | **Bazel** (loading phase); `cfnctl` only materializes the JSON |
+| 9 | Module name | `rules_cfn` |
+| 10 | `cfnctl` distribution | Built **from source** with rules_go in v1; prebuilt release binaries later |
+| 11 | Asset bucket | Own **`cfnctl bootstrap`** stack by default; per-stack override to bring your own bucket |
+| 12 | Property-type paths | **Flat**: `s3_types.bucket_versioning_configuration(...)` |
 
 ## 1. Goal
 
@@ -49,11 +55,11 @@ load("@rules_cfn//cfn:core.bzl", "cfn")
 def log_bucket(sc, retention_days = 30):
     bucket = s3.bucket(
         sc.id("Bucket"),
-        versioning_configuration = s3_types.bucket.versioning_configuration(
+        versioning_configuration = s3_types.bucket_versioning_configuration(
             status = "Enabled",
         ),
-        lifecycle_configuration = s3_types.bucket.lifecycle_configuration(
-            rules = [s3_types.bucket.rule(
+        lifecycle_configuration = s3_types.bucket_lifecycle_configuration(
+            rules = [s3_types.bucket_rule(
                 status = "Enabled",
                 expiration_in_days = retention_days,
             )],
@@ -96,7 +102,7 @@ Errors happen at load time and name the field path:
 
 ```
 Error: AWS::S3::Bucket "LogsBucket": .versioning_configuration: expected
-  s3_types.bucket.versioning_configuration, got dict
+  s3_types.bucket_versioning_configuration, got dict
 Error: AWS::S3::Bucket "LogsBucket": .versioning_configuration.status:
   "enabled" is not one of ["Enabled", "Suspended"]
 ```
@@ -144,8 +150,8 @@ way, the *output* is Starlark.
 @cfn//
   BUILD.bazel                # bzl_library per file
   spec_info.bzl              # SPEC = struct(version, sha256, types = [...])
-  aws/s3.bzl                 # exports: s3, s3_types
-  aws/lambda.bzl             # exports: lambda_, lambda_types   ("lambda" is a Starlark keyword)
+  aws/s3.bzl                 # exports: s3, s3_types, s3_enums
+  aws/lambda.bzl             # exports: lambda_, lambda_types, lambda_enums   ("lambda" is a Starlark keyword)
   mongodb/atlas.bzl
   private/aws_s3_schema.bzl  # compact validation tables
 ```
@@ -190,20 +196,29 @@ s3 = struct(
 )
 
 s3_types = struct(
-    bucket = struct(
-        versioning_configuration = _bucket_versioning_configuration,
-        lifecycle_configuration = _bucket_lifecycle_configuration,
-        rule = _bucket_rule,
-        # ...
-    ),
+    bucket_versioning_configuration = _bucket_versioning_configuration,
+    bucket_lifecycle_configuration = _bucket_lifecycle_configuration,
+    bucket_rule = _bucket_rule,
+    # ...
+)
+
+s3_enums = struct(
+    bucket_versioning_configuration_status = struct(ENABLED = "Enabled", SUSPENDED = "Suspended"),
+    # ...
 )
 ```
 
 **Typing rules (decision 2)**
 
-- Every named or inline object in the schema becomes a constructor. Inline
-  anonymous objects get a name built from their property path
-  (`bucket.cors_configuration_cors_rule`). Constructors return a tagged
+- Every named or inline object in the schema becomes a constructor in the
+  flat `<service>_types` namespace, named `<resource>_<type>`
+  (`s3_types.bucket_versioning_configuration`). Inline anonymous objects get
+  a name built from their property path
+  (`bucket_cors_configuration_cors_rule`). Flattening can collide: resource
+  `bucket` with type `policy_status`, and resource `bucket_policy` with type
+  `status`, both give `bucket_policy_status`. Codegen fails on a collision
+  and it gets resolved in `naming_overrides.json`, like any other naming
+  collision. Constructors return a tagged
   struct, and a parent only accepts a value carrying the expected type tag.
   **Dicts are rejected for typed properties.**
 - **Untyped spec shapes** (`type: object` with no `properties`, JSON-typed
@@ -213,8 +228,8 @@ s3_types = struct(
   (`cfn.iam.policy_document(statements = [cfn.iam.statement(...)])`) give it
   types anyway.
 - **Enums** are validated strings. Their values are generated as constants
-  where they are valid identifiers:
-  `s3_types.bucket.versioning_configuration.enums.status.ENABLED`. Values
+  in `<service>_enums` where they are valid identifiers:
+  `s3_enums.bucket_versioning_configuration_status.ENABLED`. Values
   themselves are never snake-cased.
 - **Unions** (`oneOf` / `anyOf`) accept any member type.
 - **Tags:** properties shaped like `{Key, Value}` accept the shared
@@ -406,24 +421,11 @@ of scope for v1, but it is the reason for the "pure Starlark" constraint in §5.
 | 6 | `cfn.overlay`, `resource_spec` adapter, mirrored snapshots, snapshot tool, Renovate | Private-type overlay fixture; two pinned versions |
 | 7 | Stardoc for core + generated service sample, README | — |
 
-## 11. Open questions (rev 2)
+## 11. Open questions
 
-1. **Strict validation placement (old Q7):** Bazel's Starlark has no regex, so
-   checking spec `pattern`s and min/max at load time means a hand-rolled
-   matcher and slower loads. The proposal (§7) does those checks in
-   `cfnctl package` with Go `regexp`, so they fail at `bazel build` and not
-   at load. Is that acceptable?
-2. **Interpretation of decision 4:** this doc assumes Bazel evaluates the
-   Starlark and `cfnctl` only materializes the JSON it produces. The
-   alternative is that `cfnctl` evaluates the Starlark itself (starlark-go,
-   inside an action), which brings regex and file reads but makes libraries
-   less like normal `bzl_library` targets. Which did you mean?
-3. **Module name:** `rules_cfn`?
-4. **`cfnctl` distribution:** build from source with rules_go (v1 proposal),
-   or also ship prebuilt release binaries so consumers don't need the Go SDK?
-5. **Asset bucket:** own `cfnctl bootstrap` stack (proposed), or require
-   users to bring a bucket?
-6. **Property-type constructor paths:**
-   `s3_types.bucket.versioning_configuration(...)` is proposed. It's
-   unambiguous but long. The alternative is flattening to
-   `s3_types.bucket_versioning_configuration(...)`. Any preference?
+None blocking. The phase 0 spike decides two things:
+
+- Whether full-spec codegen in a Starlark repository rule is fast enough, or
+  whether it moves to `cfnctl gen`. The output is Starlark either way.
+- The final ergonomics of the hand-written S3/IAM bindings. Any API changes
+  are folded back into §4.3 before phase 2.
