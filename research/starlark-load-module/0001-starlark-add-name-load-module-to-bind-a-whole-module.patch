@@ -1,0 +1,680 @@
+From a13c680509f7816fce244601b462df323f5ae0ba Mon Sep 17 00:00:00 2001
+From: dastbe <dastbe@gmail.com>
+Date: Fri, 30 Oct 2026 16:25:22 +0000
+Subject: [PATCH] starlark: add 'name = load("module")' to bind a whole module
+
+Behind the new syntax.FileOptions.LoadModule option, a load statement
+may appear as the right-hand side of an assignment to a single
+identifier, with no symbols listed. The identifier is bound to a
+*starlark.LoadedModule whose attributes are the module's exported
+(non-underscore) members, so callers can write lib.f().
+
+- syntax: LoadStmt.Alias; parser accepts IDENT '=' load(STRING)
+- resolve: Alias is bound like any other load binding
+- compile: new LOADMODULE opcode; bytecode Version 15
+- starlark: LoadedModule value; LOAD/LOADMODULE share Thread.load
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RQkJsyThCiRZxeZr2ymEyZ
+---
+ doc/spec.md                           | 25 +++++++++++
+ internal/compile/compile.go           | 18 +++++++-
+ resolve/resolve.go                    | 27 +++++++----
+ resolve/resolve_test.go               |  1 +
+ resolve/testdata/resolve.star         | 27 +++++++++++
+ starlark/eval_test.go                 |  2 +
+ starlark/interp.go                    | 49 +++++++++++++++-----
+ starlark/loadedmodule.go              | 54 ++++++++++++++++++++++
+ starlark/testdata/loadmodule.star     | 65 +++++++++++++++++++++++++++
+ starlark/testdata/loadmodule_lib.star | 15 +++++++
+ syntax/options.go                     |  1 +
+ syntax/parse.go                       | 24 ++++++++--
+ syntax/parse_test.go                  | 13 +++++-
+ syntax/syntax.go                      | 10 +++++
+ syntax/testdata/errors.star           | 32 +++++++++++++
+ syntax/walk.go                        |  3 ++
+ 16 files changed, 339 insertions(+), 27 deletions(-)
+ create mode 100644 starlark/loadedmodule.go
+ create mode 100644 starlark/testdata/loadmodule.star
+ create mode 100644 starlark/testdata/loadmodule_lib.star
+
+diff --git a/doc/spec.md b/doc/spec.md
+index 29a38cb..4f3d1dc 100644
+--- a/doc/spec.md
++++ b/doc/spec.md
+@@ -2870,6 +2870,31 @@ load("module.star", "x", y2="y", "z")    # assigns x, y2, and z
+ 
+ A load statement may not be nested inside any other statement.
+ 
++<b>Implementation note:</b>
++The Go implementation of Starlark permits an additional form of the
++load statement when the `LoadModule` file option is enabled.
++In this form, the load appears on the right-hand side of an assignment
++to a single identifier, and names no symbols to extract:
++
++```grammar {.good}
++LoadModuleStmt = identifier '=' 'load' '(' string [','] ')' .
++```
++
++It binds the identifier to a value of type `module` representing the
++entire loaded module. Its attributes are the module's exported
++globals, that is, those whose names do not start with `_`:
++
++```python
++lib = load("lib.star")
++lib.f(1)                  # calls f, defined in lib.star
++lib._g                    # error: module has no ._g field or method
++```
++
++Like the names bound by an ordinary load statement, the identifier is
++local to the file, and the statement may not be nested inside any
++other statement. `load` is not otherwise an expression:
++`f(load("lib.star"))` is a syntax error.
++
+ 
+ ## Module execution
+ 
+diff --git a/internal/compile/compile.go b/internal/compile/compile.go
+index 31f3f12..5ab501a 100644
+--- a/internal/compile/compile.go
++++ b/internal/compile/compile.go
+@@ -46,7 +46,7 @@ var Disassemble = false
+ const debug = false // make code generation verbose, for debugging the compiler
+ 
+ // Increment this to force recompilation of saved bytecode files.
+-const Version = 14
++const Version = 15
+ 
+ type Opcode uint8
+ 
+@@ -112,6 +112,7 @@ const (
+ 	INPLACE_ADD  //            x y INPLACE_ADD  z      where z is x+y or x.extend(y)
+ 	INPLACE_PIPE //            x y INPLACE_PIPE z      where z is x|y
+ 	MAKEDICT     //              - MAKEDICT     dict
++	LOADMODULE   //         module LOADMODULE   value  [value represents the entire loaded module]
+ 
+ 	// --- opcodes with an argument must go below this line ---
+ 
+@@ -184,6 +185,7 @@ var opcodeNames = [...]string{
+ 	JMP:          "jmp",
+ 	LE:           "le",
+ 	LOAD:         "load",
++	LOADMODULE:   "loadmodule",
+ 	LOCAL:        "local",
+ 	LOCALCELL:    "localcell",
+ 	LT:           "lt",
+@@ -258,6 +260,7 @@ var stackEffect = [...]int8{
+ 	JMP:          0,
+ 	LE:           -1,
+ 	LOAD:         -1,
++	LOADMODULE:   0,
+ 	LOCAL:        +1,
+ 	LOCALCELL:    +1,
+ 	LT:           -1,
+@@ -1221,6 +1224,19 @@ func (fcomp *fcomp) stmt(stmt syntax.Stmt) {
+ 		fcomp.block = fcomp.newBlock() // dead code
+ 
+ 	case *syntax.LoadStmt:
++		if stmt.Alias != nil {
++			// name = load("module")
++			module := stmt.Module.Value.(string)
++			fcomp.pcomp.prog.Loads = append(fcomp.pcomp.prog.Loads, Binding{
++				Name: module,
++				Pos:  stmt.Module.TokenPos,
++			})
++			fcomp.string(module)
++			fcomp.setPos(stmt.Load)
++			fcomp.emit(LOADMODULE)
++			fcomp.set(stmt.Alias)
++			break
++		}
+ 		for i := range stmt.From {
+ 			fcomp.string(stmt.From[i].Name)
+ 		}
+diff --git a/resolve/resolve.go b/resolve/resolve.go
+index 4d046b3..f1f57d7 100644
+--- a/resolve/resolve.go
++++ b/resolve/resolve.go
+@@ -579,6 +579,11 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
+ 			r.errorf(stmt.Load, "load statement within a conditional")
+ 		}
+ 
++		if stmt.Alias != nil {
++			// name = load("module")
++			r.bindLoad(stmt.Alias)
++		}
++
+ 		for i, from := range stmt.From {
+ 			if from.Name == "" {
+ 				r.errorf(from.NamePos, "load: empty identifier")
+@@ -588,15 +593,7 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
+ 				r.errorf(from.NamePos, "load: names with leading underscores are not exported: %s", from.Name)
+ 			}
+ 
+-			id := stmt.To[i]
+-			if r.options.LoadBindsGlobally {
+-				r.bind(id)
+-			} else if r.bindLocal(id) && !r.options.GlobalReassign {
+-				// "Global" in AllowGlobalReassign is a misnomer for "toplevel".
+-				// Sadly we can't report the previous declaration
+-				// as id.Binding may not be set yet.
+-				r.errorf(id.NamePos, "cannot reassign top-level %s", id.Name)
+-			}
++			r.bindLoad(stmt.To[i])
+ 		}
+ 
+ 	default:
+@@ -604,6 +601,18 @@ func (r *resolver) stmt(stmt syntax.Stmt) {
+ 	}
+ }
+ 
++// bindLoad binds an identifier defined by a load statement.
++func (r *resolver) bindLoad(id *syntax.Ident) {
++	if r.options.LoadBindsGlobally {
++		r.bind(id)
++	} else if r.bindLocal(id) && !r.options.GlobalReassign {
++		// "Global" in AllowGlobalReassign is a misnomer for "toplevel".
++		// Sadly we can't report the previous declaration
++		// as id.Binding may not be set yet.
++		r.errorf(id.NamePos, "cannot reassign top-level %s", id.Name)
++	}
++}
++
+ func (r *resolver) assign(lhs syntax.Expr, isAugmented bool) {
+ 	switch lhs := lhs.(type) {
+ 	case *syntax.Ident:
+diff --git a/resolve/resolve_test.go b/resolve/resolve_test.go
+index 31bba18..1b15b72 100644
+--- a/resolve/resolve_test.go
++++ b/resolve/resolve_test.go
+@@ -22,6 +22,7 @@ func getOptions(src string) *syntax.FileOptions {
+ 		TopLevelControl:   option(src, "toplevelcontrol"),
+ 		GlobalReassign:    option(src, "globalreassign"),
+ 		LoadBindsGlobally: option(src, "loadbindsglobally"),
++		LoadModule:        option(src, "loadmodule"),
+ 		Recursion:         option(src, "recursion"),
+ 	}
+ }
+diff --git a/resolve/testdata/resolve.star b/resolve/testdata/resolve.star
+index 55612c8..db45752 100644
+--- a/resolve/testdata/resolve.star
++++ b/resolve/testdata/resolve.star
+@@ -393,3 +393,30 @@ load("module", "x") # ok
+ ---
+ _ = x # forward ref to file-local
+ load("module", "x") # ok
++
++---
++# option:loadmodule
++m = load("module") # ok
++m = 1 ### `cannot reassign local m`
++n = load("module")
++n = load("module") ### `cannot reassign top-level n`
++
++---
++# option:loadmodule option:globalreassign
++m = load("module") # ok
++m = load("module") # ok
++
++---
++# option:loadmodule
++_ = m # forward ref to file-local
++m = load("module") # ok
++
++---
++# option:loadmodule
++def f():
++  m = load("module") ### "load statement within a function"
++
++---
++# option:loadmodule option:toplevelcontrol
++if M:
++  m = load("module") ### "load statement within a conditional"
+diff --git a/starlark/eval_test.go b/starlark/eval_test.go
+index 4843168..bc0e4a2 100644
+--- a/starlark/eval_test.go
++++ b/starlark/eval_test.go
+@@ -40,6 +40,7 @@ func getOptions(src string) *syntax.FileOptions {
+ 		TopLevelControl:   option(src, "toplevelcontrol"),
+ 		GlobalReassign:    option(src, "globalreassign"),
+ 		LoadBindsGlobally: option(src, "loadbindsglobally"),
++		LoadModule:        option(src, "loadmodule"),
+ 		Recursion:         option(src, "recursion"),
+ 	}
+ }
+@@ -146,6 +147,7 @@ func TestExecFile(t *testing.T) {
+ 		"testdata/int.star",
+ 		"testdata/json.star",
+ 		"testdata/list.star",
++		"testdata/loadmodule.star",
+ 		"testdata/math.star",
+ 		"testdata/misc.star",
+ 		"testdata/proto.star",
+diff --git a/starlark/interp.go b/starlark/interp.go
+index ff1b0b2..a0d0e26 100644
+--- a/starlark/interp.go
++++ b/starlark/interp.go
+@@ -582,19 +582,9 @@ loop:
+ 			module := string(stack[sp-1].(String))
+ 			sp--
+ 
+-			if thread.Load == nil {
+-				err = fmt.Errorf("load not implemented by this application")
+-				break loop
+-			}
+-
+-			thread.endProfSpan()
+-			dict, err2 := thread.Load(thread, module)
+-			thread.beginProfSpan()
++			dict, err2 := thread.load(module)
+ 			if err2 != nil {
+-				err = wrappedError{
+-					msg:   fmt.Sprintf("cannot load %s: %v", module, err2),
+-					cause: err2,
+-				}
++				err = err2
+ 				break loop
+ 			}
+ 
+@@ -618,6 +608,22 @@ loop:
+ 				}
+ 			}
+ 
++		case compile.LOADMODULE:
++			module := string(stack[sp-1].(String))
++			dict, err2 := thread.load(module)
++			if err2 != nil {
++				err = err2
++				break loop
++			}
++			stack[sp-1] = &LoadedModule{name: module, members: dict}
++
++			// Check whether Load callback cancelled the thread.
++			if thread.checkSteps() {
++				if err = thread.checkStepsSlow(); err != nil {
++					break loop
++				}
++			}
++
+ 		case compile.SETLOCAL:
+ 			locals[arg] = stack[sp-1]
+ 			sp--
+@@ -762,3 +768,22 @@ func (c *cell) Freeze() {
+ }
+ func (c *cell) Truth() Bool           { panic("unreachable") }
+ func (c *cell) Hash() (uint32, error) { panic("unreachable") }
++
++// load calls the thread's Load function for the specified module,
++// as required by the LOAD and LOADMODULE instructions.
++func (thread *Thread) load(module string) (StringDict, error) {
++	if thread.Load == nil {
++		return nil, fmt.Errorf("load not implemented by this application")
++	}
++
++	thread.endProfSpan()
++	dict, err := thread.Load(thread, module)
++	thread.beginProfSpan()
++	if err != nil {
++		return nil, wrappedError{
++			msg:   fmt.Sprintf("cannot load %s: %v", module, err),
++			cause: err,
++		}
++	}
++	return dict, nil
++}
+diff --git a/starlark/loadedmodule.go b/starlark/loadedmodule.go
+new file mode 100644
+index 0000000..ddfae7a
+--- /dev/null
++++ b/starlark/loadedmodule.go
+@@ -0,0 +1,54 @@
++// Copyright 2026 The Bazel Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package starlark
++
++import (
++	"fmt"
++	"strings"
++)
++
++// A LoadedModule is the value bound by the assignment form of the load
++// statement, name = load("module"), which requires the
++// [syntax.FileOptions.LoadModule] option.
++//
++// Its attributes are the members of the StringDict returned by the
++// thread's Load function, excluding names beginning with an underscore,
++// which (as with the ordinary form of load) are not exported.
++type LoadedModule struct {
++	name    string
++	members StringDict
++}
++
++var _ HasAttrs = (*LoadedModule)(nil)
++
++// Name returns the module name passed to load.
++func (m *LoadedModule) Name() string { return m.name }
++
++// Members returns the exported members of the module.
++func (m *LoadedModule) Members() StringDict {
++	r := make(StringDict, len(m.members))
++	for k, v := range m.members {
++		if !isPrivate(k) {
++			r[k] = v
++		}
++	}
++	return r
++}
++
++func (m *LoadedModule) Attr(name string) (Value, error) {
++	if isPrivate(name) {
++		return nil, nil // no such attribute
++	}
++	return m.members[name], nil
++}
++
++func (m *LoadedModule) AttrNames() []string   { return m.Members().Keys() }
++func (m *LoadedModule) Freeze()               { m.members.Freeze() }
++func (m *LoadedModule) Hash() (uint32, error) { return 0, fmt.Errorf("unhashable: %s", m.Type()) }
++func (m *LoadedModule) String() string        { return fmt.Sprintf("<module %q>", m.name) }
++func (m *LoadedModule) Truth() Bool           { return true }
++func (m *LoadedModule) Type() string          { return "module" }
++
++func isPrivate(name string) bool { return strings.HasPrefix(name, "_") }
+diff --git a/starlark/testdata/loadmodule.star b/starlark/testdata/loadmodule.star
+new file mode 100644
+index 0000000..a41a7db
+--- /dev/null
++++ b/starlark/testdata/loadmodule.star
+@@ -0,0 +1,65 @@
++# Tests of the assignment form of load: name = load("module").
++# option:loadmodule
++
++load("assert.star", "assert")
++
++lib = load("loadmodule_lib.star")
++
++assert.eq(type(lib), "module")
++assert.eq(str(lib), '<module "loadmodule_lib.star">')
++assert.true(lib)
++assert.eq(lib.double(21), 42)
++assert.eq(lib.greeting, "hello")
++assert.eq(lib.numbers, [1, 2, 3])
++
++# Functions may use the module's private members internally...
++assert.eq(lib.reveal(), "hidden")
++
++# ...but names beginning with underscore are not exported.
++assert.eq(dir(lib), ["double", "greeting", "numbers", "reveal"])
++assert.true(not hasattr(lib, "_private"))
++assert.fails(lambda: lib._private, "module has no ._private field or method")
++assert.fails(lambda: lib._secret, "module has no ._secret field or method")
++
++# no such field, with spelling suggestions
++assert.fails(lambda: lib.doubel, "module has no .doubel field or method .did you mean .double\\?")
++
++# Loaded modules are immutable and unhashable.
++def assignfield():
++    lib.greeting = "bye"
++
++assert.fails(assignfield, "can't assign to .greeting field of module")
++assert.fails(lambda: lib.numbers.append(4), "cannot append to frozen list")
++assert.fails(lambda: {lib: None}, "unhashable: module")
++
++# A module bound this way is an ordinary first-class value.
++def call_via(m, x):
++    return m.double(x)
++
++assert.eq(call_via(lib, 5), 10)
++assert.eq(getattr(lib, "greeting"), "hello")
++
++---
++# option:loadmodule
++load("assert.star", "assert")
++
++# Both forms may load the same module.
++# (The test loader does not cache modules, so the functions are distinct.)
++lib = load("loadmodule_lib.star")
++load("loadmodule_lib.star", "double")
++assert.eq(lib.double(3), double(3))
++
++---
++# option:loadmodule
++# Forward references from functions are allowed, as with ordinary loads.
++load("assert.star", "assert")
++
++def f():
++    return lib.greeting
++
++lib = load("loadmodule_lib.star")
++assert.eq(f(), "hello")
++
++---
++# option:loadmodule
++lib = load("nonesuch.star") ### "cannot load nonesuch.star"
+diff --git a/starlark/testdata/loadmodule_lib.star b/starlark/testdata/loadmodule_lib.star
+new file mode 100644
+index 0000000..19a5538
+--- /dev/null
++++ b/starlark/testdata/loadmodule_lib.star
+@@ -0,0 +1,15 @@
++# A module loaded by loadmodule.star.
++# (It is not run as a test by itself.)
++
++def double(x):
++    return 2 * x
++
++def _secret():
++    return "hidden"
++
++def reveal():
++    return _secret()
++
++greeting = "hello"
++numbers = [1, 2, 3]
++_private = 42
+diff --git a/syntax/options.go b/syntax/options.go
+index 109aaf6..b0e59a3 100644
+--- a/syntax/options.go
++++ b/syntax/options.go
+@@ -27,6 +27,7 @@ type FileOptions struct {
+ 	TopLevelControl   bool // allow if/for/while statements at top-level
+ 	GlobalReassign    bool // allow reassignment to top-level names
+ 	LoadBindsGlobally bool // load creates global not file-local bindings (deprecated)
++	LoadModule        bool // allow 'name = load("module")', binding name to the whole module
+ 
+ 	// compiler
+ 	Recursion bool // disable recursion check for functions in this file
+diff --git a/syntax/parse.go b/syntax/parse.go
+index e115393..3d6983c 100644
+--- a/syntax/parse.go
++++ b/syntax/parse.go
+@@ -344,7 +344,7 @@ func (p *parser) parseSmallStmt() Stmt {
+ 		return &BranchStmt{Token: tok, TokenPos: pos}
+ 
+ 	case LOAD:
+-		return p.parseLoadStmt()
++		return p.parseLoadStmt(nil)
+ 	}
+ 
+ 	// Assignment
+@@ -353,6 +353,17 @@ func (p *parser) parseSmallStmt() Stmt {
+ 	case EQ, PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, SLASHSLASH_EQ, PERCENT_EQ, AMP_EQ, PIPE_EQ, CIRCUMFLEX_EQ, LTLT_EQ, GTGT_EQ:
+ 		op := p.tok
+ 		pos := p.nextToken() // consume op
++		if p.tok == LOAD {
++			// name = load("module")
++			if !p.options.LoadModule {
++				p.in.errorf(p.in.pos, "load may not be used as an expression (enable the LoadModule option to bind a whole module)")
++			}
++			id, ok := x.(*Ident)
++			if op != EQ || !ok {
++				p.in.errorf(pos, "load result must be assigned to a single identifier, as in: name = load(\"module\")")
++			}
++			return p.parseLoadStmt(id)
++		}
+ 		rhs := p.parseExpr(false)
+ 		return &AssignStmt{OpPos: pos, Op: op, LHS: x, RHS: rhs}
+ 	}
+@@ -362,7 +373,9 @@ func (p *parser) parseSmallStmt() Stmt {
+ }
+ 
+ // stmt = LOAD '(' STRING {',' (IDENT '=')? STRING} [','] ')'
+-func (p *parser) parseLoadStmt() *LoadStmt {
++//
++//	| IDENT '=' LOAD '(' STRING [','] ')'     (alias != nil; requires LoadModule option)
++func (p *parser) parseLoadStmt(alias *Ident) *LoadStmt {
+ 	loadPos := p.nextToken() // consume LOAD
+ 	lparen := p.consume(LPAREN)
+ 
+@@ -412,10 +425,15 @@ func (p *parser) parseLoadStmt() *LoadStmt {
+ 	}
+ 	rparen := p.consume(RPAREN)
+ 
+-	if len(to) == 0 {
++	if alias != nil {
++		if len(to) > 0 {
++			p.in.errorf(to[0].NamePos, "%s = load(...) binds the whole module and may not import individual symbols", alias.Name)
++		}
++	} else if len(to) == 0 {
+ 		p.in.errorf(lparen, "load statement must import at least 1 symbol")
+ 	}
+ 	return &LoadStmt{
++		Alias:  alias,
+ 		Load:   loadPos,
+ 		Module: module,
+ 		To:     to,
+diff --git a/syntax/parse_test.go b/syntax/parse_test.go
+index 75645a4..4d1c5ef 100644
+--- a/syntax/parse_test.go
++++ b/syntax/parse_test.go
+@@ -176,6 +176,10 @@ else:
+ 			`(LoadStmt Module="" From=(a c) To=(a b))`},
+ 		{`if True: load("", "a", b="c")`, // load needn't be at toplevel
+ 			`(IfStmt Cond=True True=((LoadStmt Module="" From=(a c) To=(a b))))`},
++		{`m = load("m")`, // requires LoadModule option
++			`(LoadStmt Alias=m Module="m")`},
++		{`m = load("m",)`,
++			`(LoadStmt Alias=m Module="m")`},
+ 		{`def f(x, *args, **kwargs):
+ 	pass`,
+ 			`(DefStmt Name=f Params=(x (UnaryExpr Op=* X=args) (UnaryExpr Op=** X=kwargs)) Body=((BranchStmt Token=pass)))`},
+@@ -201,7 +205,9 @@ def h():
+ 		{"f();\n",
+ 			`(ExprStmt X=(CallExpr Fn=f))`},
+ 	} {
+-		f, err := syntax.Parse("foo.star", test.input, 0)
++		opts := syntax.LegacyFileOptions()
++		opts.LoadModule = true
++		f, err := opts.Parse("foo.star", test.input, 0)
+ 		if err != nil {
+ 			t.Errorf("parse `%s` failed: %v", test.input, stripPos(err))
+ 			continue
+@@ -433,7 +439,10 @@ func writeTree(out *bytes.Buffer, x reflect.Value) {
+ func TestParseErrors(t *testing.T) {
+ 	filename := starlarktest.DataFile("syntax", "testdata/errors.star")
+ 	for _, chunk := range chunkedfile.Read(filename, t) {
+-		_, err := syntax.Parse(filename, chunk.Source, 0)
++		// A chunk may enable the LoadModule option by containing "option:loadmodule".
++		opts := syntax.LegacyFileOptions()
++		opts.LoadModule = strings.Contains(chunk.Source, "option:loadmodule")
++		_, err := opts.Parse(filename, chunk.Source, 0)
+ 		switch err := err.(type) {
+ 		case nil:
+ 			// ok
+diff --git a/syntax/syntax.go b/syntax/syntax.go
+index 57983b4..50b7c16 100644
+--- a/syntax/syntax.go
++++ b/syntax/syntax.go
+@@ -169,6 +169,12 @@ func (x *IfStmt) Span() (start, end Position) {
+ // A LoadStmt loads another module and binds names from it:
+ // load(Module, "x", y="foo").
+ //
++// In its assignment form, name = load(Module), Alias is non-nil,
++// From and To are empty, and the statement binds Alias to a value
++// representing the entire module, whose exported members are
++// accessible as attributes (name.x). This form requires the
++// [FileOptions.LoadModule] option.
++//
+ // The AST is slightly unfaithful to the concrete syntax here because
+ // Starlark's load statement, so that it can be implemented in Python,
+ // binds some names (like y above) with an identifier and some (like x)
+@@ -176,6 +182,7 @@ func (x *IfStmt) Span() (start, end Position) {
+ // strings.
+ type LoadStmt struct {
+ 	commentsRef
++	Alias  *Ident // name bound to the whole module (assignment form only), or nil
+ 	Load   Position
+ 	Module *Literal // a string
+ 	From   []*Ident // name defined in loading module
+@@ -184,6 +191,9 @@ type LoadStmt struct {
+ }
+ 
+ func (x *LoadStmt) Span() (start, end Position) {
++	if x.Alias != nil {
++		return x.Alias.NamePos, x.Rparen
++	}
+ 	return x.Load, x.Rparen
+ }
+ 
+diff --git a/syntax/testdata/errors.star b/syntax/testdata/errors.star
+index f480640..c1384a1 100644
+--- a/syntax/testdata/errors.star
++++ b/syntax/testdata/errors.star
+@@ -157,6 +157,38 @@ load("a", "x")
+ load("a", "x", y2="y")
+ load("a", x2="x", "y") # => positional-before-named arg check happens later (!)
+ ---
++# Assigning the result of load requires the LoadModule option.
++m = load("a") ### "load may not be used as an expression"
++---
++# option:loadmodule
++m = load("a") # ok
++n = load("b",) # ok
++---
++# option:loadmodule
++m = load("a", "x") ### `m = load\(...\) binds the whole module and may not import individual symbols`
++---
++# option:loadmodule
++m = load() ### "first operand of load statement must be a string literal"
++---
++# option:loadmodule
++m = load(x) ### "first operand of load statement must be a string literal"
++---
++# option:loadmodule
++m.f = load("a") ### "load result must be assigned to a single identifier"
++---
++# option:loadmodule
++a, b = load("a") ### "load result must be assigned to a single identifier"
++---
++# option:loadmodule
++m += load("a") ### "load result must be assigned to a single identifier"
++---
++# option:loadmodule
++# load is still not an expression in other positions.
++f(load("a")) ### `got load, want primary`
++---
++# option:loadmodule
++m = load("a").f ### `got '.', want newline`
++---
+ # 'load' is not an identifier
+ load = 1 ### `got '=', want '\('`
+ ---
+diff --git a/syntax/walk.go b/syntax/walk.go
+index 65f6808..48482a0 100644
+--- a/syntax/walk.go
++++ b/syntax/walk.go
+@@ -59,6 +59,9 @@ func Walk(n Node, f func(Node) bool) {
+ 		}
+ 
+ 	case *LoadStmt:
++		if n.Alias != nil {
++			Walk(n.Alias, f)
++		}
+ 		Walk(n.Module, f)
+ 		for _, from := range n.From {
+ 			Walk(from, f)
+-- 
+2.43.0
+
