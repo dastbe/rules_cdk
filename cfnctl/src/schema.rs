@@ -106,15 +106,14 @@ pub struct Resource {
     pub types: Vec<PropType>,
 }
 
-const PRIMS: &[(&str, fn() -> Kind)] = &[
-    ("string", || Kind::Str),
-    ("integer", || Kind::Int),
-    ("number", || Kind::Num),
-    ("boolean", || Kind::Bool),
-];
-
 fn prim(t: &str) -> Option<Kind> {
-    PRIMS.iter().find(|(n, _)| *n == t).map(|(_, k)| k())
+    match t {
+        "string" => Some(Kind::Str),
+        "integer" => Some(Kind::Int),
+        "number" => Some(Kind::Num),
+        "boolean" => Some(Kind::Bool),
+        _ => None,
+    }
 }
 
 fn is_type_bearing(n: &Value) -> bool {

@@ -17,3 +17,8 @@ sha2 = "0.10"
 starlark = "=0.14.2"
 starlark_lsp = "=0.14.2"
 lsp-types = "0.97"
+aws-config = { version = "1.13.0", features = ["behavior-version-latest"] }
+aws-sdk-cloudformation = "1.136.0"
+aws-sdk-s3 = "1.157.0"
+aws-sdk-sts = "1.124.0"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time"] }

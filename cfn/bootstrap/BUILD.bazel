@@ -1,77 +1,11 @@
-# The asset bucket cfnctl uploads Lambda code and large templates to.
-#
-#   bazel run @rules_cfn//cfn/bootstrap:bootstrap.deploy        # once per account + region
-#
-# Deployed with whatever region/credentials the environment provides.
-load("@cfn//aws:s3.bzl", "s3", "s3_types")
-load("//cfn:core.bzl", "cfn")
 load("//cfn:defs.bzl", "cfn_stack")
 
-_BUCKET = s3.bucket(
-    "AssetBucket",
-    bucket_encryption = s3_types.bucket_bucket_encryption(
-        server_side_encryption_configuration = [s3_types.bucket_server_side_encryption_rule(
-            server_side_encryption_by_default = s3_types.bucket_server_side_encryption_by_default(sse_algorithm = "AES256"),
-        )],
-    ),
-    # Must match manifest.DefaultAssetBucket in //cfn/internal/manifest.
-    bucket_name = cfn.sub("rules-cfn-assets-${AWS::AccountId}-${AWS::Region}"),
-    # Deployed stacks keep referencing their code here; never delete it with the stack.
-    deletion_policy = "Retain",
-    lifecycle_configuration = s3_types.bucket_lifecycle_configuration(
-        rules = [s3_types.bucket_rule(
-            abort_incomplete_multipart_upload = s3_types.bucket_abort_incomplete_multipart_upload(days_after_initiation = 1),
-            id = "abort-incomplete-uploads",
-            status = "Enabled",
-        )],
-    ),
-    ownership_controls = s3_types.bucket_ownership_controls(
-        rules = [s3_types.bucket_ownership_controls_rule(object_ownership = "BucketOwnerEnforced")],
-    ),
-    public_access_block_configuration = s3_types.bucket_public_access_block_configuration(
-        block_public_acls = True,
-        block_public_policy = True,
-        ignore_public_acls = True,
-        restrict_public_buckets = True,
-    ),
-    update_replace_policy = "Retain",
-)
-
-_POLICY = s3.bucket_policy(
-    "AssetBucketPolicy",
-    bucket = _BUCKET.ref,
-    policy_document = cfn.iam.policy_document([cfn.iam.statement(
-        actions = "s3:*",
-        condition = {"Bool": {"aws:SecureTransport": "false"}},
-        effect = "Deny",
-        principal = "*",
-        resources = [
-            _BUCKET.attr.arn,
-            cfn.join(
-                "",
-                [
-                    _BUCKET.attr.arn,
-                    "/*",
-                ],
-            ),
-        ],
-        sid = "DenyInsecureTransport",
-    )]),
-)
-
+# The asset bucket cfnctl uploads to. Once per account + region:
+#   bazel run @rules_cfn//cfn/bootstrap:bootstrap.deploy
+# (deployed with whatever region/credentials the environment provides).
 cfn_stack(
     name = "bootstrap",
+    src = "bootstrap.star",
     stack_name = "RulesCfnBootstrap",
-    template = cfn.template(
-        description = "rules_cfn asset bucket",
-        outputs = [cfn.output(
-            "AssetBucket",
-            _BUCKET.ref,
-        )],
-        resources = [
-            _BUCKET,
-            _POLICY,
-        ],
-    ),
     visibility = ["//visibility:public"],
 )

@@ -9,7 +9,7 @@
 load("//cfn/private:spec_repo.bzl", "cfn_spec_repo")
 
 _spec = tag_class(
-    doc = "Declares a spec repository generated from CloudFormation registry schemas.",
+    doc = "Declares a spec repository; its :bindings target holds typed .star bindings generated from the schemas.",
     attrs = {
         "name": attr.string(default = "cfn", doc = "Repository name; libraries conventionally load from @cfn."),
         "urls": attr.string_list(doc = "URLs of a registry schema archive (e.g. CloudformationSchema.zip)."),
@@ -60,6 +60,7 @@ def _cfn_impl(mctx):
             }))
         cfn_spec_repo(
             name = name,
+            apparent_name = name,
             archives = archives,
             schema_dirs = s.schema_dirs,
             include = s.include,

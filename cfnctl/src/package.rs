@@ -89,8 +89,8 @@ pub fn parse_asset_line(l: &str) -> Result<AssetFile> {
 pub fn canonical_zip(files: &BTreeMap<String, PathBuf>) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     let mut central = Vec::new();
-    // 1980-01-01 00:00:00 in MS-DOS format.
-    let (dos_time, dos_date) = (0u16, (0 << 9) | (1 << 5) | 1u16);
+    // 1980-01-01 00:00:00 in MS-DOS format: date = (year - 1980) << 9 | month << 5 | day.
+    let (dos_time, dos_date) = (0u16, (1u16 << 5) | 1);
     for (name, path) in files {
         let data = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
         let exec = is_executable(path);

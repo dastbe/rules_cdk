@@ -1,0 +1,30 @@
+# Each file is invalid in one way; the test passes only if cfnctl reports that error.
+load("//cfn:defs.bzl", "cfn_check_test")
+
+_CASES = {
+    # Statically typed (reported for code that never runs, too).
+    "wrong_record_static": "Expected type `None | BucketVersioningConfiguration | Intrinsic` but got `BucketLifecycleConfiguration`",
+    "unknown_attribute": "has no attribute `arnn`, did you mean `arn`?",
+    # Type annotations, checked at call time.
+    "dict_for_typed": "does not match the type annotation `None | BucketVersioningConfiguration | Intrinsic` for argument `versioning_configuration`",
+    "wrong_primitive": "Value `5` of type `int` does not match the type annotation `None | str | Intrinsic` for argument `table_name`",
+    "list_element": "does not match the type annotation `list[Intrinsic | TableKeySchema] | Intrinsic` for argument `key_schema`",
+    "resource_as_value": "does not match the type annotation `None | str | Intrinsic` for argument `bucket_name`",
+    "unknown_property": "Found `bucket_nmae` extra named parameter(s)",
+    "missing_required": "Missing named-only parameter `key_schema`",
+    # Schema constraints annotations can't express.
+    "enum": "bucket_versioning_configuration: status: expected one of [\"Enabled\", \"Suspended\"], got \"enabled\"",
+    "pattern": "AWS::Lambda::Function \"F\": handler: \"bad handler\" does not match pattern ^[^\\s]+$",
+    "max_length": "is longer than the maximum length 128",
+    "deletion_policy": "DeletionPolicy must be one of [\"Delete\", \"Retain\", \"RetainExceptOnCreate\", \"Snapshot\"], got \"Keep\"",
+    "bad_logical_id": "logical ID \"my-bucket\" must be alphanumeric",
+    # Template assembly.
+    "dangling_ref": "template: C references B which is not a resource or parameter in this template",
+    "duplicate_id": "template: duplicate logical ID B",
+}
+
+[cfn_check_test(
+    name = name + "_test",
+    srcs = [name + ".star"],
+    expect_error = want,
+) for name, want in _CASES.items()]

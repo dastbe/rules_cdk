@@ -1,0 +1,17 @@
+load("@cfnctl_crates//:defs.bzl", "all_crate_deps")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
+
+rust_binary(
+    name = "cfnctl",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(normal = True),
+)
+
+rust_test(
+    name = "cfnctl_test",
+    size = "small",
+    crate = ":cfnctl",
+    deps = all_crate_deps(normal_dev = True),
+)

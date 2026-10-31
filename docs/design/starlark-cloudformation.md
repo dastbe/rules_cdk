@@ -1,6 +1,6 @@
 # Design: rules_cfn: typed Starlark bindings generated from CloudFormation specs
 
-Status: **Phases 0–5 implemented on Bazel Starlark (rev 4, §12). Rev 5 (§13) proposes moving evaluation to starlark-rust.**
+Status: **Implemented on starlark-rust with a Rust `cfnctl` (rev 6, §14). §12 records the earlier Bazel-Starlark implementation it replaced.**
 
 Review decisions:
 
@@ -595,3 +595,93 @@ all of it ourselves, and still have no LSP.
   with BUILD files. That's fine once evaluation lives in actions.
 - A second toolchain (rules_rust) until or unless `cfnctl` is ported.
 - The LSP's member completion is limited, which forces flat exports.
+
+## 14. Rev 6: spike results (starlark-rust, Rust `cfnctl`)
+
+Review decision: with starlark-rust, `cfnctl` is Rust too. The spike met all
+three exit criteria from §13, so it replaced the Bazel-Starlark runtime and
+codegen and the Go `cfnctl` outright.
+
+### Exit criteria
+
+| Criterion | Result |
+|---|---|
+| `examples/crud_api` matches the golden | Template and manifest are identical except asset keys. Asset zips are now canonical *stored* zips written by `cfnctl` itself, so their hashes no longer depend on a compression library. The golden was regenerated once for that. |
+| Completion and hover in an editor | `cfnctl lsp` / `bazel run //:lsp`, tested over JSON-RPC: completion of `bucket(` keyword arguments, hover with signature and docs, go-to-definition into `aws/s3/bucket.star`, and typecheck diagnostics on change. |
+| Typechecker flags a mistyped property before evaluation | `wrong_record_static_test`: a `BucketLifecycleConfiguration` passed as `versioning_configuration` inside a function that is never called. |
+
+### What the generated bindings look like
+
+One file per resource type, `@cfn//<namespace>/<service>:<resource>.star`. Per
+file:
+
+- a `record` per property type (`BucketVersioningConfiguration`) with a
+  snake_case constructor (`bucket_versioning_configuration(*, status: str | Intrinsic)`);
+- the resource record (`Bucket`, with typed `.ref`, `.attr` and the
+  properties as fields), its attribute record (`BucketAttrs`), and the
+  constructor (`bucket(logical_id, *, ...) -> Bucket`);
+- constraint tables (enum, pattern, lengths, ranges, item counts) checked by
+  `runtime.star` at construction time. Patterns use a host builtin backed by
+  Rust `regex`.
+
+Per-resource files replaced the per-service plan from §4. Flat top-level exports
+in a per-service file would have collided in 10 places in the full spec (IAM
+`role_policy` resource vs. the `Role.Policy` type, EC2
+`security_group_ingress`, ...); per-resource files can't collide.
+
+Constructors that would shadow a builtin get a trailing underscore
+(`AWS::Cases::Field` → `field_`, `AWS::FraudDetector::List` → `list_`).
+
+### Measurements (full us-east-1 spec, 1,875 types)
+
+- `cfnctl gen`: about 2.2 s → 30 MB of `.star`.
+- Typecheck plus load of every file: about 2.6 s
+  (`bazel test //cfn/tests:full_spec_check_test`).
+- Cold Bazel build of `cfnctl` with the AWS SDK: about 8 min (cached
+  afterwards).
+
+### Findings worth knowing
+
+- starlark-rust's standalone `AstModule::typecheck` treats record types as
+  opaque (`Any`). Static typechecking *during evaluation*
+  (`Evaluator::enable_static_typechecking`) knows them, including across
+  `load()`. `cfnctl check`, `build` and the LSP all evaluate with it on.
+- `type(record)` is `"record"`, and a record's type name isn't public API.
+  Values therefore carry their rendered JSON in a `_cfn` field, set by the
+  generated constructors, and nothing reflects on record type names.
+- The LSP completes globals, loaded symbols and keyword arguments, but not
+  record or struct members. That is why everything users need is a top-level
+  export.
+- The same file reached through two labels (`//cfn:core.star` vs
+  `@rules_cfn//cfn:core.star`) must be one module, or its record types differ.
+  The loader caches by canonical path.
+
+### Bazel surface
+
+```
+cfn.spec / cfn.overlay        module extension → @cfn (schemas) + @cfn//:bindings (cfnctl gen)
+cfn_library(srcs, deps)       .star sources
+cfn_stack(src, deps, assets)  cfnctl build → <name>.template.json / .manifest.json / .assets/,
+                              plus <name>.diff / .plan / .deploy / .destroy run targets
+cfn_check_test(srcs, expect_error)
+cfn_lsp(deps)                 editor entry point
+```
+
+### Removed
+
+- The Go `cfnctl` (`cfn/cmd`, `cfn/internal`), `go.mod` and rules_go/gazelle.
+- The Bazel-Starlark codegen and runtime (`codegen.bzl`, `naming.bzl`,
+  `runtime.bzl`, `core.bzl`) and `cfn/tests/load_errors.sh`, now
+  `cfn/tests/errors` as `cfn_check_test`s.
+
+### Still open
+
+- Libraries in *other* modules need `cfn_library(repo_name = ...)`. Assets must
+  live in the main repository.
+- `cfn_app` multi-stack ordering, directory/image/nested-stack assets, the
+  `resource_spec` format, mirrored snapshots.
+- No run against a real AWS account yet. `diff`/`plan`/`deploy`/`destroy` are
+  covered by the fake-backed tests, and a smoke run reached the real STS
+  endpoint.
+- Hover renders signatures without their type annotations (a starlark_lsp
+  limitation); the docs list each parameter's type in prose.

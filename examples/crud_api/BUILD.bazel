@@ -1,13 +1,22 @@
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("@rules_cfn//cfn:defs.bzl", "cfn_stack")
-load(":stack.bzl", "crud_api_template")
+load("//cfn:defs.bzl", "cfn_stack")
+
+_HANDLERS = [
+    "create",
+    "delete-one",
+    "get-all",
+    "get-one",
+    "update-one",
+]
 
 # bazel build //examples/crud_api:stack  -> stack.template.json, stack.manifest.json, stack.assets/
 # bazel run   //examples/crud_api:stack.{diff,plan,deploy,destroy}
 cfn_stack(
     name = "stack",
+    src = "stack.star",
+    assets = ["//examples/crud_api/lambdas:" + h for h in _HANDLERS],
     stack_name = "ApiLambdaCrudDynamoDBExample",
-    template = crud_api_template(),
+    deps = ["//examples/crud_api/lib"],
 )
 
 # The materialized output is checked in so changes to bindings, codegen or

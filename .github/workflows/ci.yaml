@@ -20,23 +20,19 @@ jobs:
           path: |
             ~/.cache/bazel
             ~/.cache/bazel-repo
-          key: bazel-cache-${{ hashFiles('MODULE.bazel', 'go.sum', '**/BUILD.bazel', '**/*.bzl', '.bazelversion') }}
+          key: bazel-cache-${{ hashFiles('MODULE.bazel', 'cfnctl/Cargo.lock', '**/BUILD.bazel', '**/*.bzl', '.bazelversion') }}
           restore-keys: bazel-cache-
       - name: bazel test //...
         env:
           XDG_CACHE_HOME: ~/.cache/bazel-repo
         run: bazel --bazelrc=.github/workflows/ci.bazelrc --bazelrc=.bazelrc test //...
-      - name: load-time error messages
-        env:
-          XDG_CACHE_HOME: ~/.cache/bazel-repo
-        run: cfn/tests/load_errors.sh "bazel --bazelrc=.github/workflows/ci.bazelrc --bazelrc=.bazelrc"
       - name: full-spec codegen smoke test (AWS latest schemas)
         # The upstream archive is unpinned, so a failure here is a signal about
         # codegen robustness rather than about the change under review.
         continue-on-error: true
         env:
           XDG_CACHE_HOME: ~/.cache/bazel-repo
-        run: bazel --bazelrc=.github/workflows/ci.bazelrc --bazelrc=.bazelrc build @cfn_latest//_smoke
+        run: bazel --bazelrc=.github/workflows/ci.bazelrc --bazelrc=.bazelrc test //cfn/tests:full_spec_check_test
 
   ci-success:
     needs: [test]

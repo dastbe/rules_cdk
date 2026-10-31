@@ -5,43 +5,43 @@
   ],
   "asset_bucket": "rules-cfn-assets-${AWS::AccountId}-${AWS::Region}",
   "template": "stack.template.json",
-  "template_sha256": "e722fa0e6c6423482d2ccf9ad211be6140d098aad4ad7b5d7329d83d70fdbeca",
+  "template_sha256": "6952687efffcfad08c477c8685dca226fd61d6408bc6f7082926529206392d42",
   "template_size": 27833,
   "assets": [
     {
       "label": "//examples/crud_api/lambdas:create",
       "packaging": "zip",
-      "sha256": "6c73a40afd48e16d4ade6e3bd5333dc4a67a02b2b5466515dd2e1a7a8661d5ef",
-      "key": "assets/6c73a40afd48e16d4ade6e3bd5333dc4a67a02b2b5466515dd2e1a7a8661d5ef.zip",
-      "file": "stack.assets/6c73a40afd48e16d4ade6e3bd5333dc4a67a02b2b5466515dd2e1a7a8661d5ef.zip"
+      "sha256": "7faa30b31e7dadfc493dad3bba6b73a10d3647c3f30ef40477a873b1d142a41d",
+      "key": "assets/7faa30b31e7dadfc493dad3bba6b73a10d3647c3f30ef40477a873b1d142a41d.zip",
+      "file": "stack.assets/7faa30b31e7dadfc493dad3bba6b73a10d3647c3f30ef40477a873b1d142a41d.zip"
     },
     {
       "label": "//examples/crud_api/lambdas:delete-one",
       "packaging": "zip",
-      "sha256": "aece9c4a45078648331e2da1cbeea37ff58a14112a5e2f21a60bd623d0123a99",
-      "key": "assets/aece9c4a45078648331e2da1cbeea37ff58a14112a5e2f21a60bd623d0123a99.zip",
-      "file": "stack.assets/aece9c4a45078648331e2da1cbeea37ff58a14112a5e2f21a60bd623d0123a99.zip"
+      "sha256": "25a734ea8fab502ce91f0931ff86dc87d047541300744c36b222574accbfc37c",
+      "key": "assets/25a734ea8fab502ce91f0931ff86dc87d047541300744c36b222574accbfc37c.zip",
+      "file": "stack.assets/25a734ea8fab502ce91f0931ff86dc87d047541300744c36b222574accbfc37c.zip"
     },
     {
       "label": "//examples/crud_api/lambdas:get-all",
       "packaging": "zip",
-      "sha256": "b02319c7dcfc0003d4a4069709f8a683e8ad4c2838d543f7433bfb3371ebe075",
-      "key": "assets/b02319c7dcfc0003d4a4069709f8a683e8ad4c2838d543f7433bfb3371ebe075.zip",
-      "file": "stack.assets/b02319c7dcfc0003d4a4069709f8a683e8ad4c2838d543f7433bfb3371ebe075.zip"
+      "sha256": "e274581cc3d2ee47f670c0440cf35bcbf2e7701af75184f17e09e282eb173f18",
+      "key": "assets/e274581cc3d2ee47f670c0440cf35bcbf2e7701af75184f17e09e282eb173f18.zip",
+      "file": "stack.assets/e274581cc3d2ee47f670c0440cf35bcbf2e7701af75184f17e09e282eb173f18.zip"
     },
     {
       "label": "//examples/crud_api/lambdas:get-one",
       "packaging": "zip",
-      "sha256": "b5b6e761a9c150261c9a72d090e6b55c8baabda95079654ef7f01732693a0a71",
-      "key": "assets/b5b6e761a9c150261c9a72d090e6b55c8baabda95079654ef7f01732693a0a71.zip",
-      "file": "stack.assets/b5b6e761a9c150261c9a72d090e6b55c8baabda95079654ef7f01732693a0a71.zip"
+      "sha256": "9a110cad1941ce30a36171d74315006ec2443eb55aeb6e045562d5ac813916e0",
+      "key": "assets/9a110cad1941ce30a36171d74315006ec2443eb55aeb6e045562d5ac813916e0.zip",
+      "file": "stack.assets/9a110cad1941ce30a36171d74315006ec2443eb55aeb6e045562d5ac813916e0.zip"
     },
     {
       "label": "//examples/crud_api/lambdas:update-one",
       "packaging": "zip",
-      "sha256": "683525223f772e228d9d523d7553f7d61a2abab81c581ef45fae5300074823b2",
-      "key": "assets/683525223f772e228d9d523d7553f7d61a2abab81c581ef45fae5300074823b2.zip",
-      "file": "stack.assets/683525223f772e228d9d523d7553f7d61a2abab81c581ef45fae5300074823b2.zip"
+      "sha256": "499abd7f2ea564182ee1547f0ae56c4b3bd205c0c543dcb2fdf0e988282ee0cc",
+      "key": "assets/499abd7f2ea564182ee1547f0ae56c4b3bd205c0c543dcb2fdf0e988282ee0cc.zip",
+      "file": "stack.assets/499abd7f2ea564182ee1547f0ae56c4b3bd205c0c543dcb2fdf0e988282ee0cc.zip"
     }
   ]
 }

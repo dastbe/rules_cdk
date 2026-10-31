@@ -1,0 +1,11 @@
+load("//cfn:defs.bzl", "cfn_check_test")
+
+# Generates bindings for AWS's full, unpinned latest spec and typechecks + loads
+# every file. Manual: it downloads an archive whose contents change without notice.
+cfn_check_test(
+    name = "full_spec_check_test",
+    size = "medium",
+    srcs = ["@cfn_latest//:bindings"],
+    tags = ["manual"],
+    deps = ["@cfn_latest//:bindings"],
+)

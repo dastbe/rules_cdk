@@ -1,31 +1,31 @@
 # rules_cfn
 
 Write CloudFormation in typed Starlark, generated straight from CloudFormation's
-own registry schemas, and build, diff and deploy it with Bazel.
+own registry schemas, then build, diff and deploy it with Bazel.
 
 > This repository used to hold `rules_cdk`. The CDK rules are gone; see
 > [docs/design/starlark-cloudformation.md](docs/design/starlark-cloudformation.md)
 > for the design.
 
+```python
+# infra/logging.star
+load("@cfn//aws/s3:bucket.star", "bucket", "bucket_versioning_configuration")
+load("@rules_cfn//cfn:core.star", "Template", "output", "template")
+
+def main() -> Template:
+    logs = bucket(
+        "Logs",
+        versioning_configuration = bucket_versioning_configuration(status = "Enabled"),
+        deletion_policy = "Retain",
+    )
+    return template(resources = [logs], outputs = [output("LogsArn", logs.attr.arn)])
+```
+
 ```starlark
-load("@cfn//aws:s3.bzl", "s3", "s3_types")
-load("@rules_cfn//cfn:core.bzl", "cfn")
+# infra/BUILD.bazel
 load("@rules_cfn//cfn:defs.bzl", "cfn_stack")
 
-logs = s3.bucket(
-    "Logs",
-    versioning_configuration = s3_types.bucket_versioning_configuration(status = "Enabled"),
-    deletion_policy = "Retain",
-)
-
-cfn_stack(
-    name = "logging",
-    region = "us-east-1",
-    template = cfn.template(
-        resources = [logs],
-        outputs = [cfn.output("LogsArn", logs.attr.arn)],
-    ),
-)
+cfn_stack(name = "logging", src = "logging.star", region = "us-east-1")
 ```
 
 ```
@@ -36,33 +36,58 @@ bazel run   //infra:logging.deploy     # upload assets, create + execute a chang
 bazel run   //infra:logging.destroy
 ```
 
-Mistakes fail when the BUILD file loads, with the exact field named:
+## Typed, and checked before anything runs
+
+Bindings are ordinary Starlark files, one per resource type, generated from the
+schemas. Every property type is a `record`, and every constructor parameter
+carries a type annotation. [starlark-rust](https://github.com/facebook/starlark-rust)
+typechecks all code statically, including functions nothing calls yet:
 
 ```
-Error in fail: s3_types.bucket_versioning_configuration: status: expected one of ["Enabled", "Suspended"], got "enabled"
+error: Expected type `None | BucketVersioningConfiguration | Intrinsic` but got `BucketLifecycleConfiguration`
+error: Object of type `record` has no attribute `arnn`, did you mean `arn`?
 ```
+
+What types can't express (enums, patterns, lengths, ranges) is checked when the
+value is built:
+
+```
+error: fail: bucket_versioning_configuration: status: expected one of ["Enabled", "Suspended"], got "enabled"
+```
+
+## Editor support
+
+`cfnctl lsp` is a language server that understands `@repo//pkg:file.star` labels.
+It offers completion of keyword arguments, hover docs from the schemas,
+go-to-definition into the generated bindings, and typecheck diagnostics as you
+type. Point your editor's Starlark LSP command at:
+
+```
+bazel run --ui_event_filters=-info --noshow_progress //:lsp
+```
+
+where `//:lsp` is a `cfn_lsp(name = "lsp")` target.
 
 ## How it works
 
 1. **Specs are remote archives.** The `cfn` module extension fetches registry
-   schema archives (or local schema directories) and a repository rule
-   generates `@cfn//<namespace>:<service>.bzl` for every service. Each file
-   exports three structs: `<service>` (resources), `<service>_types` (property
-   types) and `<service>_enums`. Everything is snake_case, and constructors are
-   typed: a typed property only accepts the matching constructor, not a dict.
-   The full us-east-1 spec (about 1,870 resource types, 12,900 constructors)
-   generates and loads in about 10 seconds.
-2. **Libraries are plain Starlark.** Functions take a `cfn.scope()` for
-   logical-ID namespacing and return resources. See
+   schema archives or local schema directories. `@cfn//:bindings` runs
+   `cfnctl gen` to produce `<namespace>/<service>/<resource>.star`. AWS's full
+   us-east-1 spec (about 1,875 types) generates in about 2 seconds and
+   typechecks in about 3.
+2. **Libraries are plain `.star` files** (`cfn_library`). They take a `scope()`
+   for logical-ID namespacing and return typed records. See
    [examples/crud_api/lib](examples/crud_api/lib).
-3. **`cfn_stack` materializes.** Bazel serializes the template. Then
-   `cfnctl package` (Go) zips and hashes assets into content-addressed S3
-   keys, applies the schema checks Starlark can't (regex `pattern`s, lengths,
-   ranges, item counts), infers IAM capabilities, and writes the final
-   template plus a manifest.
-4. **`cfnctl` deploys raw CloudFormation** with change sets. No CDK, no Node.
-   It refuses to run against an account or region other than the one the
-   stack is pinned to.
+3. **`cfn_stack` materializes.** `cfnctl build` evaluates `main()` and packages
+   the result:
+   - zips assets canonically and stores them under content-addressed S3 keys,
+   - infers IAM capabilities,
+   - writes the final template and a manifest.
+4. **`cfnctl` deploys raw CloudFormation** with change sets. It refuses to run
+   against an account or region other than the one the stack is pinned to.
+
+`cfnctl` is a single Rust binary (starlark-rust, starlark_lsp, AWS SDK for
+Rust), built with `rules_rust`.
 
 ## Setup
 
@@ -105,14 +130,10 @@ It has a DynamoDB table, five Lambda functions with read/write grants, and a
 REST API with CORS. Its materialized template and manifest are checked in
 under [examples/crud_api/golden](examples/crud_api/golden) and diff-tested.
 
-```
-bazel build //examples/crud_api:stack
-```
-
 ## Development
 
 ```
-bazel test //...                      # Go unit tests + golden tests
-cfn/tests/load_errors.sh              # load-time error messages
-bazel build @cfn_latest//_smoke       # generate + load bindings for AWS's latest full spec
+bazel test //...                                # Rust unit tests, error-message tests, golden tests
+bazel test //cfn/tests:full_spec_check_test     # generate + typecheck AWS's latest full spec
+cd cfnctl && cargo test                         # the Rust crate on its own
 ```

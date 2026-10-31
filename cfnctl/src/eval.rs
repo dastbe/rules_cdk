@@ -120,13 +120,28 @@ impl Repos {
 
     /// The label of a file under one of the repository directories.
     pub fn label_for(&self, path: &Path) -> Result<Label> {
-        let abs = std::fs::canonicalize(path).with_context(|| format!("resolving {}", path.display()))?;
+        // Compare both lexical and symlink-resolved forms: Bazel sandboxes present
+        // inputs as symlinks, while editors (and bazel-bin) may hand us either.
+        let forms = |p: &Path| -> Vec<PathBuf> {
+            let mut v = Vec::new();
+            if let Ok(a) = std::path::absolute(p) {
+                v.push(a);
+            }
+            if let Ok(c) = std::fs::canonicalize(p) {
+                v.push(c);
+            }
+            v
+        };
+        let files = forms(path);
         let mut best: Option<(&String, PathBuf)> = None;
         for (name, dir) in &self.dirs {
-            let Ok(d) = std::fs::canonicalize(dir) else { continue };
-            if let Ok(rel) = abs.strip_prefix(&d) {
-                if best.as_ref().is_none_or(|(_, b)| rel.components().count() < b.components().count()) {
-                    best = Some((name, rel.to_owned()));
+            for d in forms(dir) {
+                for f in &files {
+                    if let Ok(rel) = f.strip_prefix(&d) {
+                        if best.as_ref().is_none_or(|(_, b)| rel.components().count() < b.components().count()) {
+                            best = Some((name, rel.to_owned()));
+                        }
+                    }
                 }
             }
         }
@@ -236,11 +251,30 @@ pub fn eval_template(repos: Repos, entry: &Path, function: &str) -> Result<serde
     })
 }
 
-/// Evaluates files for their errors only (`cfnctl check`).
+fn star_files(p: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    if !p.is_dir() {
+        out.push(p.to_owned());
+        return Ok(());
+    }
+    let mut entries: Vec<PathBuf> = std::fs::read_dir(p)?.map(|e| e.map(|e| e.path())).collect::<std::io::Result<_>>()?;
+    entries.sort();
+    for e in entries {
+        if e.is_dir() || e.extension().is_some_and(|x| x == "star") {
+            star_files(&e, out)?;
+        }
+    }
+    Ok(())
+}
+
+/// Evaluates files (or directories of .star files) for their errors only (`cfnctl check`).
 pub fn check(repos: Repos, files: &[PathBuf]) -> Result<()> {
     let shared = Rc::new(Shared { repos, globals: globals(), cache: RefCell::new(HashMap::new()), loading: RefCell::new(Vec::new()) });
-    let mut failures = Vec::new();
+    let mut all = Vec::new();
     for f in files {
+        star_files(f, &mut all)?;
+    }
+    let mut failures = Vec::new();
+    for f in &all {
         let label = shared.repos.label_for(f)?;
         if let Err(e) = load_module(&shared, &label) {
             failures.push(format!("{e}"));

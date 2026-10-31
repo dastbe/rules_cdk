@@ -1,8 +1,0 @@
-load("@rules_go//go:def.bzl", "go_library")
-
-go_library(
-    name = "tmpldiff",
-    srcs = ["tmpldiff.go"],
-    importpath = "github.com/dastbe/rules_cdk/cfn/internal/tmpldiff",
-    visibility = ["//cfn:__subpackages__"],
-)

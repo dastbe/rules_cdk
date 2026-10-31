@@ -1,5 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "includePaths": ["MODULE.bazel", "go.mod"]
+  "includePaths": ["MODULE.bazel", "cfnctl/Cargo.toml"]
 }

@@ -6,13 +6,20 @@
 //!   cfnctl package  raw template -> final template + manifest + packaged assets
 //!   cfnctl build    eval + package in one step (what the cfn_stack rule runs)
 //!   cfnctl lsp      language server (stdio) for editors
+//!   cfnctl diff     compare the built template with the deployed stack
+//!   cfnctl plan     dry run: create, describe and delete a change set
+//!   cfnctl deploy   create and execute a change set, streaming stack events
+//!   cfnctl destroy  delete the stack
 
+mod aws;
+mod deploy;
 mod eval;
 mod gen;
 mod lsp;
 mod naming;
 mod package;
 mod schema;
+mod tmpldiff;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -97,6 +104,26 @@ enum Cmd {
         #[command(flatten)]
         outs: PackageArgs,
     },
+    /// Diff the built template against the deployed stack.
+    Diff(RemoteArgs),
+    /// Dry run: create, print and delete a change set.
+    Plan {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        /// Keep the change set for review instead of deleting it.
+        #[arg(long)]
+        keep: bool,
+    },
+    /// Upload assets and create + execute a change set.
+    Deploy(RemoteArgs),
+    /// Delete the stack.
+    Destroy {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        /// Disable termination protection first.
+        #[arg(long)]
+        force: bool,
+    },
     /// Run the language server on stdio.
     Lsp {
         #[command(flatten)]
@@ -112,6 +139,78 @@ enum Cmd {
         outs: PackageArgs,
         file: PathBuf,
     },
+}
+
+#[derive(Args)]
+struct RemoteArgs {
+    /// Stack manifest written by `cfnctl package`/`build`.
+    #[arg(long)]
+    manifest: PathBuf,
+    /// AWS shared config profile.
+    #[arg(long)]
+    profile: Option<String>,
+    /// AWS region (default: the manifest's region, then the SDK's default chain).
+    #[arg(long)]
+    region: Option<String>,
+    /// Don't ask for confirmation (deploy/destroy).
+    #[arg(long)]
+    yes: bool,
+    /// Exit 2 when there are changes (diff/plan).
+    #[arg(long)]
+    detailed_exitcode: bool,
+}
+
+enum Remote {
+    Diff,
+    Plan { keep: bool },
+    Deploy,
+    Destroy { force: bool },
+}
+
+fn run_remote(args: RemoteArgs, what: Remote) -> Result<()> {
+    use std::io::IsTerminal;
+    let manifest: package::Manifest = serde_json::from_slice(&std::fs::read(&args.manifest)?).with_context(|| format!("parsing {}", args.manifest.display()))?;
+    let mut region = (!manifest.config.region.is_empty()).then(|| manifest.config.region.clone());
+    if let Some(r) = args.region {
+        if region.as_ref().is_some_and(|m| *m != r) {
+            bail!("stack {} is pinned to region {}; --region={r} conflicts", manifest.config.stack_name, region.unwrap());
+        }
+        region = Some(r);
+    }
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+    let changed = rt.block_on(async {
+        let (sdk, region) = aws::Sdk::new(region, args.profile).await?;
+        let stdin = std::io::stdin();
+        let mut d = deploy::Deployer {
+            aws: &sdk,
+            region,
+            manifest,
+            dir: args.manifest.parent().map(Path::to_owned).unwrap_or_default(),
+            yes: args.yes,
+            // Only prompt when a person is at the terminal.
+            input: stdin.is_terminal().then(|| Box::new(stdin.lock()) as Box<dyn std::io::BufRead>),
+            out: Box::new(std::io::stdout()),
+            poll: std::time::Duration::from_secs(3),
+            account: String::new(),
+        };
+        d.check_identity().await?;
+        Ok::<bool, anyhow::Error>(match what {
+            Remote::Diff => d.diff().await?,
+            Remote::Plan { keep } => d.plan(keep).await?,
+            Remote::Deploy => {
+                d.deploy().await?;
+                false
+            }
+            Remote::Destroy { force } => {
+                d.destroy(force).await?;
+                false
+            }
+        })
+    })?;
+    if changed && args.detailed_exitcode {
+        std::process::exit(2);
+    }
+    Ok(())
 }
 
 #[derive(Args)]
@@ -244,8 +343,16 @@ fn write_json(v: &serde_json::Value, out: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    match Cli::parse().cmd {
+fn main() {
+    if let Err(e) = run(Cli::parse()) {
+        // {:#} prints the context chain on one line, without a backtrace.
+        eprintln!("cfnctl: {e:#}");
+        std::process::exit(1);
+    }
+}
+
+fn run(cli: Cli) -> Result<()> {
+    match cli.cmd {
         Cmd::Gen { out, repo_name, include, exclude, schemas } => run_gen(&out, &repo_name, &include, &exclude, &schemas),
         Cmd::Check { repos, files } => eval::check(repos.repos(), &files),
         Cmd::Eval { repos, entry, out, file } => {
@@ -253,6 +360,10 @@ fn main() -> Result<()> {
             write_json(&t, out.as_deref())
         }
         Cmd::Lsp { repos } => lsp::serve(repos.repos()),
+        Cmd::Diff(r) => run_remote(r, Remote::Diff),
+        Cmd::Plan { remote, keep } => run_remote(remote, Remote::Plan { keep }),
+        Cmd::Deploy(r) => run_remote(r, Remote::Deploy),
+        Cmd::Destroy { remote, force } => run_remote(remote, Remote::Destroy { force }),
         Cmd::Package { raw, outs } => outs.run(&std::fs::read(&raw)?),
         Cmd::Build { repos, entry, outs, file } => {
             let t = eval::eval_template(repos.repos(), &file, &entry)?;

@@ -1,5 +1,5 @@
-load("@gazelle//:def.bzl", "gazelle")
+load("//cfn:defs.bzl", "cfn_lsp")
 
-# gazelle:prefix github.com/dastbe/rules_cdk
-# gazelle:exclude examples
-gazelle(name = "gazelle")
+# Language server for this repo's .star files:
+#   bazel run --ui_event_filters=-info --noshow_progress //:lsp
+cfn_lsp(name = "lsp")

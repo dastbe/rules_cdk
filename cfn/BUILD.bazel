@@ -1,13 +1,14 @@
-load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("//cfn:defs.bzl", "cfn_library")
 
-exports_files([
-    "core.bzl",
-    "defs.bzl",
-])
+exports_files(["defs.bzl"])
 
-bzl_library(
+# The hand-written core: load("@rules_cfn//cfn:core.star", ...).
+cfn_library(
     name = "core",
-    srcs = ["core.bzl"],
+    srcs = [
+        "core.star",
+        "runtime.star",
+    ],
+    repo_name = "rules_cfn",
     visibility = ["//visibility:public"],
-    deps = ["//cfn/private:runtime"],
 )

@@ -20,7 +20,7 @@ jobs:
           path: |
             ~/.cache/bazel
             ~/.cache/bazel-repo
-          key: bazel-cache-${{ hashFiles('MODULE.bazel', 'go.sum', '**/BUILD.bazel', '**/*.bzl', '.bazelversion') }}
+          key: bazel-cache-${{ hashFiles('MODULE.bazel', 'cfnctl/Cargo.lock', '**/BUILD.bazel', '**/*.bzl', '.bazelversion') }}
           restore-keys: bazel-cache-
       - name: bazel test //...
         env:
